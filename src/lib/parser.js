@@ -77,6 +77,24 @@ Formato de resposta — SOMENTE JSON válido, nada mais:
 Texto do exame:
 `;
 
+export async function extractDoctorFromText(text) {
+  const apiKey = localStorage.getItem('gemini_api_key');
+  if (!apiKey) return null;
+  const snippet = text.slice(0, 3000);
+  const prompt = `Neste texto de exame laboratorial ou laudo, qual é o nome completo do médico solicitante ou responsável?\nResponda APENAS com o nome (sem CRM, sem "Dr."/"Dra.", sem especialidade).\nSe não encontrar, responda exatamente: null\n\nTexto:\n${snippet}`;
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0, maxOutputTokens: 60 } }) }
+    );
+    const data = await res.json();
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (!raw || raw.toLowerCase() === 'null') return null;
+    return raw.replace(/^["']|["']$/g, '').trim() || null;
+  } catch { return null; }
+}
+
 export async function extractBiomarkersWithGemini(text) {
   const apiKey = localStorage.getItem('gemini_api_key');
   if (!apiKey) throw new Error('Chave da Gemini API não configurada. Vá em Configurações.');

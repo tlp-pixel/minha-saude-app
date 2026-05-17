@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHead from '../components/PageHead';
-import { parsePDF } from '../lib/parser';
+import { parsePDF, extractDoctorFromText, extractTextFromPDF } from '../lib/parser';
 import { saveExamsIndex, saveParsedExam, loadExamsIndex, mergeParsedExamIntoBiomarkers } from '../lib/storage';
 import { statusOf } from '../lib/utils';
 
@@ -28,12 +28,14 @@ function BatchResult({ results, onAgain }) {
   const ok = results.filter(r => r.ok);
   const failed = results.filter(r => !r.ok);
 
+  const updated = results.filter(r => r.updated);
+
   return (
     <div className="fade-in">
       <PageHead
         eyebrow={`${ok.length} de ${results.length} exames processados`}
         title={`<em>${totalMarkers} valores</em> extraídos`}
-        sub="Todos os exames foram analisados pelo Gemini e salvos localmente."
+        sub={updated.length > 0 ? `${updated.length} já existentes tiveram o médico atualizado.` : "Todos os exames foram analisados pelo Gemini e salvos localmente."}
         actions={<>
           <button className="btn btn--ghost" onClick={onAgain}>Enviar mais</button>
           <button className="btn btn--sage" onClick={() => navigate('/biomarcadores')}>Ver biomarcadores →</button>
@@ -44,15 +46,17 @@ function BatchResult({ results, onAgain }) {
         {results.map((r, i) => (
           <div key={i} className="card" style={{
             display: 'flex', alignItems: 'center', gap: 16,
-            borderColor: r.ok ? 'transparent' : 'var(--rust)',
-            background: r.ok ? 'var(--bg)' : 'var(--rust-soft)',
+            borderColor: r.ok || r.updated ? 'transparent' : 'var(--rust)',
+            background: r.ok || r.updated ? 'var(--bg)' : 'var(--rust-soft)',
           }}>
-            <div style={{ fontSize: 20 }}>{r.ok ? '✓' : '✗'}</div>
+            <div style={{ fontSize: 20 }}>{r.ok && !r.updated ? '✓' : r.updated ? '↻' : '✗'}</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: 'var(--serif)', fontSize: 16 }}>{r.fileName}</div>
               {r.ok
                 ? <div className="subtle tiny" style={{ marginTop: 3 }}>{r.parsed.lab} · {r.parsed.date} · {r.parsed.results.length} marcadores</div>
-                : <div style={{ fontSize: 13, color: 'var(--rust)', marginTop: 3 }}>{r.error}</div>
+                : r.updated
+                  ? <div className="subtle tiny" style={{ marginTop: 3, color: 'var(--sage)' }}>médico atualizado{r.doctor ? `: ${r.doctor}` : ' (não identificado)'}</div>
+                  : <div style={{ fontSize: 13, color: 'var(--rust)', marginTop: 3 }}>{r.error}</div>
               }
             </div>
             {r.ok && (
@@ -143,7 +147,24 @@ export default function ViewUpload() {
       setCurrent({ name: file.name, index: i + 1, total: pdfs.length });
 
       if (existingFileNames.has(file.name)) {
-        results.push({ ok: false, fileName: file.name, error: 'Duplicado — este arquivo já foi enviado.' });
+        // File already in system — just extract the doctor name (cheap)
+        try {
+          setStage('extracting');
+          const { text } = await extractTextFromPDF(file);
+          const doctor = await extractDoctorFromText(text);
+          if (doctor) {
+            const idx = (await loadExamsIndex()) || [];
+            const entry = idx.find(e => e.fileName === file.name);
+            if (entry && !entry.doctor) {
+              entry.doctor = doctor;
+              await saveExamsIndex(idx);
+            }
+          }
+          results.push({ ok: true, updated: true, fileName: file.name, doctor });
+        } catch {
+          results.push({ ok: false, fileName: file.name, error: 'Duplicado — não foi possível atualizar.' });
+        }
+        setStage('idle');
         continue;
       }
 
