@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHead from '../components/PageHead';
-import { loadExamsIndex, isConfigured } from '../lib/storage';
+import { loadExamsIndex, isConfigured, deleteExam } from '../lib/storage';
 
 export default function ViewExams() {
   const navigate = useNavigate();
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [deleting, setDeleting] = useState(null);
 
   useEffect(() => {
     if (!isConfigured()) { setLoading(false); return; }
@@ -16,6 +17,15 @@ export default function ViewExams() {
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
+
+  async function handleDelete(e, examId) {
+    e.stopPropagation();
+    if (!window.confirm('Excluir este exame? Os biomarcadores extraídos dele também serão removidos.')) return;
+    setDeleting(examId);
+    await deleteExam(examId);
+    setExams(prev => prev.filter(x => x.id !== examId));
+    setDeleting(null);
+  }
 
   const years = [...new Set(exams.map(e => e.date?.slice(0, 4)).filter(Boolean))].sort().reverse();
   const filters = [{ id: 'all', label: 'todos' }, ...years.map(y => ({ id: y, label: y }))];
@@ -89,8 +99,15 @@ export default function ViewExams() {
                     {e.resultsCount ?? '—'} marcadores extraídos · {e.pages || 1} página{(e.pages || 1) !== 1 ? 's' : ''}
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span className="pill pill--sage">✓ analisado</span>
+                  <button
+                    onClick={ev => handleDelete(ev, e.id)}
+                    disabled={deleting === e.id}
+                    style={{ padding: '5px 10px', borderRadius: 'var(--r-md)', fontSize: 12, fontFamily: 'var(--mono)', color: 'var(--rust)', background: 'transparent', border: '1px solid var(--rust)', opacity: deleting === e.id ? 0.5 : 1 }}
+                  >
+                    {deleting === e.id ? '…' : 'excluir'}
+                  </button>
                   <span className="subtle" style={{ fontFamily: 'var(--mono)', fontSize: 16 }}>→</span>
                 </div>
               </button>

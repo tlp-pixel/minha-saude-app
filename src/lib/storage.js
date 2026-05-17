@@ -29,6 +29,15 @@ async function dbPut(key, value) {
   });
 }
 
+async function dbDelete(key) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE, 'readwrite').objectStore(STORE).delete(key);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
 async function dbGetAll() {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -109,6 +118,26 @@ export async function mergeParsedExamIntoBiomarkers(parsed) {
   }
   await saveBiomarkers(biomarkers);
   return biomarkers;
+}
+
+export async function deleteExam(examId) {
+  // Remove from index
+  const index = await loadExamsIndex();
+  await saveExamsIndex(index.filter(e => e.id !== examId));
+
+  // Remove parsed file
+  await dbDelete(`exames/parsed/${examId}.json`);
+
+  // Remove measurements from biomarkers
+  const biomarkers = await loadBiomarkers();
+  for (const bio of Object.values(biomarkers)) {
+    bio.measurements = (bio.measurements || []).filter(m => m.examId !== examId);
+  }
+  // Remove biomarkers that now have no measurements
+  const cleaned = Object.fromEntries(
+    Object.entries(biomarkers).filter(([, b]) => b.measurements.length > 0)
+  );
+  await saveBiomarkers(cleaned);
 }
 
 export async function exportCSV() {

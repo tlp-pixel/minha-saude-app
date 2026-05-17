@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import PageHead from '../components/PageHead';
 import { RefBar } from '../components/charts';
-import { loadParsedExam } from '../lib/storage';
+import { loadParsedExam, deleteExam } from '../lib/storage';
 import { statusOf } from '../lib/utils';
 
 export default function ViewExamDetail() {
@@ -10,6 +10,12 @@ export default function ViewExamDetail() {
   const navigate = useNavigate();
   const [exam, setExam] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  async function handleDelete() {
+    if (!window.confirm('Excluir este exame? Os biomarcadores extraídos dele também serão removidos.')) return;
+    await deleteExam(id);
+    navigate('/exames');
+  }
 
   useEffect(() => {
     loadParsedExam(id).then(data => {
@@ -45,6 +51,11 @@ export default function ViewExamDetail() {
         eyebrow={`${exam.lab?.toLowerCase() || 'laboratório'} · ${results.length} marcadores extraídos`}
         title={`<em>${exam.lab || 'Exame'}</em>`}
         sub={`Coletado em ${exam.date ? new Date(exam.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'}. Processado pelo Gemini.`}
+        actions={
+          <button onClick={handleDelete} style={{ padding: '7px 14px', borderRadius: 'var(--r-md)', fontSize: 13, fontFamily: 'var(--mono)', color: 'var(--rust)', background: 'transparent', border: '1px solid var(--rust)' }}>
+            Excluir exame
+          </button>
+        }
       />
 
       <div className="grid grid-3" style={{ marginBottom: 32 }}>
