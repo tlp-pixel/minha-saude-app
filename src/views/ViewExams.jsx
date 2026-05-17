@@ -95,9 +95,14 @@ export default function ViewExams() {
                 </div>
                 <div>
                   <div style={{ fontFamily: 'var(--serif)', fontSize: 19 }}>{e.lab || 'Laboratório'}</div>
-                  <div className="subtle tiny" style={{ marginTop: 4 }}>
-                    {e.resultsCount ?? '—'} marcadores extraídos · {e.pages || 1} página{(e.pages || 1) !== 1 ? 's' : ''}
+                  <div className="subtle tiny" style={{ marginTop: 3 }}>
+                    {e.resultsCount ?? '—'} marcadores · {e.pages || 1} pág.
                   </div>
+                  {e.fileName && (
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)', marginTop: 3 }}>
+                      {e.fileName}
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span className="pill pill--sage">✓ analisado</span>

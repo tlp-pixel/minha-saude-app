@@ -117,6 +117,7 @@ export async function parsePDF(file, onProgress) {
   onProgress?.('normalizing', 80);
   const parsed = normalizeResults(claudeOutput);
   parsed.pages = pages;
+  parsed.fileName = file.name;
 
   onProgress?.('done', 100);
   return parsed;

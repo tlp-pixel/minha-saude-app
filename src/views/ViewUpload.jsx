@@ -112,6 +112,7 @@ export default function ViewUpload() {
         pages: result.pages || 1,
         status: 'parsed',
         resultsCount: result.results.length,
+        fileName: result.fileName || '',
       });
       await saveExamsIndex(index);
     }
@@ -133,15 +134,25 @@ export default function ViewUpload() {
     setBatchResults(null);
     const results = [];
 
+    const existingIndex = (await loadExamsIndex()) || [];
+    const existingFileNames = new Set(existingIndex.map(e => e.fileName).filter(Boolean));
+
     for (let i = 0; i < pdfs.length; i++) {
       const file = pdfs[i];
       setCurrent({ name: file.name, index: i + 1, total: pdfs.length });
+
+      if (existingFileNames.has(file.name)) {
+        results.push({ ok: false, fileName: file.name, error: 'Duplicado — este arquivo já foi enviado.' });
+        continue;
+      }
+
       setStage('reading');
       setProgress(0);
 
       try {
         const parsed = await processFile(file);
         results.push({ ok: true, fileName: file.name, parsed });
+        existingFileNames.add(file.name);
       } catch (e) {
         results.push({ ok: false, fileName: file.name, error: e.message });
       }
