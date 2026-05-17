@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import ViewHome from './views/ViewHome';
@@ -10,14 +11,23 @@ import ViewInsights from './views/ViewInsights';
 import ViewUpload from './views/ViewUpload';
 import ViewDossie from './views/ViewDossie';
 import ViewSettings from './views/ViewSettings';
-import { EXAMS, BIOMARKERS } from './data/biomarkers';
+import { loadExamsIndex, loadBiomarkers, isConfigured } from './lib/github';
 
 export default function App() {
+  const [examCount, setExamCount] = useState(null);
+  const [bioCount, setBioCount] = useState(null);
+
+  useEffect(() => {
+    if (!isConfigured()) return;
+    loadExamsIndex().then(e => setExamCount((e || []).length)).catch(() => {});
+    loadBiomarkers().then(b => setBioCount(Object.keys(b || {}).length)).catch(() => {});
+  }, []);
+
   return (
     <div className="app">
       <Sidebar
-        examCount={EXAMS.length}
-        bioCount={BIOMARKERS.length}
+        examCount={examCount}
+        bioCount={bioCount}
         userName="Thalita"
       />
       <main className="main">

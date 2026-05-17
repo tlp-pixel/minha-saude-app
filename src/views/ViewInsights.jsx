@@ -1,121 +1,140 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHead from '../components/PageHead';
-import { Sparkline } from '../components/charts';
-import { ConfidenceRing } from '../components/charts';
-import { INSIGHTS, PATTERNS, BIOMARKERS } from '../data/biomarkers';
-import { fmtDate, latestOf } from '../lib/utils';
-
-const SEV_COLOR = {
-  positive: { pill: 'pill--sage',  label: 'positivo',    glyph: '✓' },
-  watch:    { pill: 'pill--terra', label: 'observar',    glyph: '⚠' },
-  neutral:  { pill: '',            label: 'informativo', glyph: '·' },
-  negative: { pill: 'pill--rust',  label: 'atenção',     glyph: '!' },
-};
+import { loadBiomarkers, loadExamsIndex, isConfigured } from '../lib/github';
+import { statusOf } from '../lib/utils';
 
 export default function ViewInsights() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState('insights');
+  const [biomarkers, setBiomarkers] = useState({});
+  const [exams, setExams] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isConfigured()) { setLoading(false); return; }
+    Promise.all([loadBiomarkers(), loadExamsIndex()])
+      .then(([b, e]) => { setBiomarkers(b || {}); setExams(e || []); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const bioList = Object.values(biomarkers).filter(b => b.measurements?.length > 0);
+  const withRange = bioList.filter(b => b.range);
+  const outOfRange = withRange.filter(b => {
+    const v = b.measurements?.at(-1)?.value;
+    return v != null && statusOf(v, b.range) !== 'ok';
+  });
+  const improving = withRange.filter(b => {
+    const m = b.measurements || [];
+    if (m.length < 2) return false;
+    const last = m.at(-1).value;
+    const prev = m.at(-2).value;
+    const wasOut = statusOf(prev, b.range) !== 'ok';
+    const nowIn  = statusOf(last, b.range) === 'ok';
+    return wasOut && nowIn;
+  });
 
   return (
     <div className="fade-in">
       <PageHead
-        eyebrow="análise · claude"
+        eyebrow="análise · histórico"
         title="<em>Insights</em> do seu histórico"
-        sub="O Claude separa achados pontuais (insights) de comportamentos recorrentes (padrões) que se repetem ao longo dos seus exames."
+        sub="Achados automáticos baseados nos seus exames reais: o que melhorou, o que merece atenção."
       />
 
-      <div style={{ display: 'flex', gap: 6, marginBottom: 32, padding: 4, background: 'var(--bg-2)', borderRadius: 999, width: 'fit-content' }}>
-        {[
-          { id: 'insights', label: `Insights · ${INSIGHTS.length}` },
-          { id: 'patterns', label: `Padrões · ${PATTERNS.length}` },
-        ].map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
-            padding: '8px 18px', borderRadius: 999,
-            background: tab === t.id ? 'var(--bg)' : 'transparent',
-            color: tab === t.id ? 'var(--ink)' : 'var(--ink-3)',
-            fontSize: 13.5, fontFamily: 'var(--serif)',
-            boxShadow: tab === t.id ? '0 1px 2px rgba(0,0,0,0.04)' : 'none',
-          }}>{t.label}</button>
-        ))}
-      </div>
-
-      {tab === 'insights' && (
-        <div className="grid grid-2">
-          {INSIGHTS.map(ins => {
-            const sev = SEV_COLOR[ins.severity];
-            return (
-              <div key={ins.id} className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                  <span className={`pill ${sev.pill}`}>{sev.glyph} {sev.label}</span>
-                  <span className="tiny subtle" style={{ fontFamily: 'var(--mono)' }}>desde {fmtDate(ins.since + '-01', { month: 'short', year: 'numeric' })}</span>
-                </div>
-                <h3 style={{ fontFamily: 'var(--serif)', fontWeight: 400, fontSize: 21, margin: '0 0 10px', letterSpacing: '-0.01em', lineHeight: 1.2 }}>{ins.title}</h3>
-                <p style={{ color: 'var(--ink-2)', margin: 0, fontSize: 14, lineHeight: 1.55 }}>{ins.summary}</p>
-                <div className="divider" style={{ margin: '18px 0 14px' }} />
-                <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
-                  {ins.related.map(rid => {
-                    const b = BIOMARKERS.find(x => x.id === rid);
-                    if (!b) return null;
-                    return (
-                      <button key={rid} onClick={() => navigate(`/biomarcadores/${rid}`)}
-                        style={{ display: 'flex', flexDirection: 'column', gap: 4, cursor: 'pointer', textAlign: 'left' }}>
-                        <span className="tiny subtle" style={{ fontFamily: 'var(--mono)' }}>{b.name}</span>
-                        <Sparkline values={b.values} range={b.range} width={100} height={26} />
-                        <span className="num" style={{ fontSize: 15 }}>{latestOf(b)}<span className="unit">{b.unit}</span></span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+      {!isConfigured() && (
+        <div className="card" style={{ borderColor: 'var(--terra)', borderStyle: 'dashed', marginBottom: 24 }}>
+          <div className="card-label" style={{ color: 'var(--terra-2)' }}>atenção</div>
+          <p style={{ fontFamily: 'var(--serif)', fontSize: 15, margin: '6px 0 10px', color: 'var(--ink-2)' }}>
+            Configure o GitHub em Configurações para ver seus insights.
+          </p>
+          <button className="btn btn--ghost" onClick={() => navigate('/config')}>Ir para Configurações →</button>
         </div>
       )}
 
-      {tab === 'patterns' && (
-        <div>
-          <div className="card card--soft" style={{ marginBottom: 28, display: 'flex', gap: 20, alignItems: 'center' }}>
-            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--sage)', display: 'grid', placeItems: 'center', color: 'var(--bg)', fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 22, flexShrink: 0 }}>c</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: 'var(--serif)', fontSize: 18, marginBottom: 4 }}>O que são padrões?</div>
-              <div className="subtle" style={{ fontSize: 13.5, lineHeight: 1.55 }}>
-                Diferente de um insight pontual, um padrão é uma <em style={{ fontStyle: 'italic' }}>regra de comportamento</em> que se repete — sazonalidade, correlação entre marcadores, lag temporal. Vão ficando mais precisos com mais exames.
+      {loading ? (
+        <div style={{ color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontSize: 13 }}>carregando…</div>
+      ) : bioList.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '64px 0' }}>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 22, marginBottom: 10 }}>Sem dados ainda</div>
+          <div className="subtle" style={{ fontSize: 14, marginBottom: 24 }}>Envie pelo menos um exame para ver insights automáticos.</div>
+          <button className="btn btn--sage" onClick={() => navigate('/upload')}>＋ Enviar PDF</button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          <div className="grid grid-3" style={{ marginBottom: 8 }}>
+            <div className="card">
+              <div className="card-label">exames analisados</div>
+              <div className="num" style={{ fontSize: 44, lineHeight: 1, marginTop: 6 }}>{exams.length}</div>
+            </div>
+            <div className="card" style={{ background: outOfRange.length === 0 ? 'var(--sage-soft)' : 'var(--terra-soft)' }}>
+              <div className="card-label">fora da faixa agora</div>
+              <div className="num" style={{ fontSize: 44, lineHeight: 1, marginTop: 6, color: outOfRange.length === 0 ? 'var(--sage)' : 'var(--terra-2)' }}>
+                {outOfRange.length}
+              </div>
+            </div>
+            <div className="card" style={{ background: improving.length > 0 ? 'var(--sage-soft)' : undefined }}>
+              <div className="card-label">melhoraram recentemente</div>
+              <div className="num" style={{ fontSize: 44, lineHeight: 1, marginTop: 6, color: improving.length > 0 ? 'var(--sage)' : 'var(--ink-3)' }}>
+                {improving.length}
               </div>
             </div>
           </div>
 
-          <div className="grid grid-2">
-            {PATTERNS.map(p => (
-              <div key={p.id} className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                  <span className="pill">{p.kind}</span>
-                  <ConfidenceRing value={p.confidence} />
-                </div>
-                <h3 style={{ fontFamily: 'var(--serif)', fontWeight: 400, fontSize: 22, margin: '0 0 10px', letterSpacing: '-0.015em', lineHeight: 1.2 }}>{p.title}</h3>
-                <p style={{ color: 'var(--ink-2)', margin: 0, fontSize: 14, lineHeight: 1.55 }}>{p.summary}</p>
-                <div style={{ display: 'flex', gap: 14, marginTop: 18, alignItems: 'center' }}>
-                  <Sparkline values={p.sparkline} range={null} width={140} height={32} />
-                  <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--ink-3)', letterSpacing: '0.04em', lineHeight: 1.6 }}>
-                    {p.observations} OBSERVAÇÕES<br/>
-                    {(p.confidence * 100).toFixed(0)}% CONFIANÇA
-                  </div>
-                </div>
-                <div className="divider" style={{ margin: '16px 0 12px' }} />
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {p.related.map(rid => {
-                    const b = BIOMARKERS.find(x => x.id === rid);
-                    if (!b) return null;
-                    return (
-                      <button key={rid} onClick={() => navigate(`/biomarcadores/${rid}`)} className="pill" style={{ cursor: 'pointer' }}>
-                        {b.name}
-                      </button>
-                    );
-                  })}
-                </div>
+          {outOfRange.length > 0 && (
+            <div className="card">
+              <div className="card-label" style={{ color: 'var(--terra-2)' }}>fora da faixa de referência</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: 8 }}>
+                {outOfRange.map((b, i) => {
+                  const last = b.measurements.at(-1);
+                  const st = statusOf(last.value, b.range);
+                  return (
+                    <div key={b.id} onClick={() => navigate(`/biomarcadores/${b.id}`)}
+                      style={{ padding: '14px 0', borderBottom: i < outOfRange.length - 1 ? '1px solid var(--line)' : 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+                      <div>
+                        <div style={{ fontFamily: 'var(--serif)', fontSize: 16 }}>{b.name}</div>
+                        <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginTop: 4 }}>ref. {b.range[0]}–{b.range[1]} {b.unit}</div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span className="num" style={{ fontSize: 20, color: st === 'warn' ? 'var(--terra-2)' : 'var(--rust)' }}>
+                          {last.value}<span className="unit" style={{ fontSize: 11 }}>{b.unit}</span>
+                        </span>
+                        <span className={`pill ${st === 'warn' ? 'pill--terra' : 'pill--rust'}`}>
+                          {st === 'warn' ? '⚠ no limite' : '! fora'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+
+          {improving.length > 0 && (
+            <div className="card">
+              <div className="card-label" style={{ color: 'var(--sage)' }}>melhoraram desde o último exame</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: 8 }}>
+                {improving.map((b, i) => {
+                  const last = b.measurements.at(-1);
+                  return (
+                    <div key={b.id} onClick={() => navigate(`/biomarcadores/${b.id}`)}
+                      style={{ padding: '14px 0', borderBottom: i < improving.length - 1 ? '1px solid var(--line)' : 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+                      <div style={{ fontFamily: 'var(--serif)', fontSize: 16 }}>{b.name}</div>
+                      <span className="pill pill--sage">✓ voltou à faixa</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {bioList.length > 0 && outOfRange.length === 0 && improving.length === 0 && (
+            <div className="card card--soft" style={{ textAlign: 'center', padding: 40 }}>
+              <div style={{ fontFamily: 'var(--serif)', fontSize: 20, marginBottom: 8 }}>Tudo na faixa ✓</div>
+              <div className="subtle">Todos os biomarcadores com referência estão dentro do esperado.</div>
+            </div>
+          )}
         </div>
       )}
     </div>
