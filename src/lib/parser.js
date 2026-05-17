@@ -45,7 +45,7 @@ Use o formato de nome: "Órgão [Lado] - Medida" — exemplos:
 • Ovários: "Ovário D - Volume" / "Ovário E - Volume" / "Ovário D - Comprimento" / "Folículos Ovário D - Contagem"
 • Rins: "Rim D - Comprimento" / "Rim E - Comprimento"
 • Fígado: "Fígado - Maior Dimensão"
-• Mama: "Nódulo Mama D [localização] - Dimensão 1" / "Cisto Mama E - Tamanho" (mm). Se o laudo for em prosa (sem tabela), deixe results vazio e use só a TAREFA 3.
+• Mama: "Nódulo Mama D [localização] - Dimensão 1" / "Cisto Mama E - Tamanho" (mm). Laudos de mama em prosa (sem tabela) geralmente não têm valores para "results" — use a TAREFA 3 para os nódulos.
 Inclua a unidade original (cm, mm, mL, etc.) e refLow/refHigh null (USG não tem referência numérica).
 
 CATEGORIA — atribua uma categoria a cada resultado:
@@ -169,7 +169,7 @@ export async function extractBiomarkersWithGemini(text) {
 export function normalizeResults(claudeOutput) {
   const { lab, date, results, conclusions, nodules, doctor } = claudeOutput;
 
-  const normalized = results.map((r, i) => ({
+  const normalized = (Array.isArray(results) ? results : []).map((r, i) => ({
     id: `r${i}`,
     name: r.name,
     value: typeof r.value === 'number' ? r.value : parseFloat(r.value),
