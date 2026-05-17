@@ -21,12 +21,19 @@ const EXTRACTION_PROMPT = `Você receberá o texto de um exame laboratorial bras
 Extraia ABSOLUTAMENTE TODOS os biomarcadores e resultados numéricos que aparecerem.
 Não pule nenhum — hemograma completo, bioquímica, hormônios, vitaminas, urina, tudo.
 
+REGRA IMPORTANTE — VALORES DUPLOS (absoluto + percentual):
+Quando um marcador aparecer com dois valores (ex: Neutrófilos 65% e 4.500 /mm³), extraia os DOIS como entradas separadas:
+  - Uma com o valor percentual, unidade "%" e a faixa de referência em %
+  - Outra com o valor absoluto, unidade "/mm³" (ou "10³/µL" etc.) e a faixa de referência absoluta
+Isso se aplica a todos os componentes do leucograma: Neutrófilos, Linfócitos, Monócitos, Eosinófilos, Basófilos, Bastões, etc.
+Use a faixa de referência que corresponde à unidade extraída — nunca misture faixa de % com valor absoluto.
+
 Para cada resultado, retorne um objeto JSON com:
-- name: nome do exame exatamente como aparece no laudo
+- name: nome do exame exatamente como aparece no laudo (acrescente " %" ou " Abs." ao nome quando for necessário distinguir os dois)
 - value: valor numérico (número, não string)
 - unit: unidade de medida
-- refLow: limite inferior da faixa de referência (null se não informado)
-- refHigh: limite superior da faixa de referência (null se não informado)
+- refLow: limite inferior da faixa de referência correspondente à unidade (null se não informado)
+- refHigh: limite superior da faixa de referência correspondente à unidade (null se não informado)
 - status: "normal" | "alto" | "baixo" | "indeterminado"
 - rawText: trecho original do texto com esse resultado
 
