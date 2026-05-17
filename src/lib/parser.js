@@ -41,37 +41,32 @@ Retorne SOMENTE um JSON válido neste formato:
 Texto do exame:
 `;
 
-export async function extractBiomarkersWithClaude(text) {
-  const apiKey = localStorage.getItem('claude_api_key');
-  if (!apiKey) throw new Error('Chave da Claude API não configurada. Vá em Configurações.');
+export async function extractBiomarkersWithGemini(text) {
+  const apiKey = localStorage.getItem('gemini_api_key');
+  if (!apiKey) throw new Error('Chave da Gemini API não configurada. Vá em Configurações.');
 
   const truncatedText = text.slice(0, 12000);
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
-      messages: [{
-        role: 'user',
-        content: EXTRACTION_PROMPT + truncatedText,
-      }],
-    }),
-  });
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: EXTRACTION_PROMPT + truncatedText }] }],
+        generationConfig: { temperature: 0.1 },
+      }),
+    }
+  );
 
   if (!res.ok) {
     const err = await res.json();
-    throw new Error(`Claude API: ${err.error?.message || res.status}`);
+    throw new Error(`Gemini API: ${err.error?.message || res.status}`);
   }
 
   const data = await res.json();
-  const raw = data.content[0].text;
+  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!raw) throw new Error('Gemini não retornou resposta.');
 
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Claude não retornou JSON válido.');
@@ -110,7 +105,7 @@ export async function parsePDF(file, onProgress) {
   const { text, pages } = await extractTextFromPDF(file);
 
   onProgress?.('extracting', 40);
-  const claudeOutput = await extractBiomarkersWithClaude(text);
+  const claudeOutput = await extractBiomarkersWithGemini(text);
 
   onProgress?.('normalizing', 80);
   const parsed = normalizeResults(claudeOutput);

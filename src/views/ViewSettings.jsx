@@ -6,7 +6,7 @@ export default function ViewSettings() {
   const [dark, setDark] = useState(() => document.documentElement.getAttribute('data-dark') === 'true');
   const [density, setDensity] = useState(() => document.documentElement.getAttribute('data-density') || 'comfortable');
 
-  const [claudeKey, setClaudeKey] = useState(() => localStorage.getItem('claude_api_key') || '');
+  const [claudeKey, setClaudeKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
   const [showClaudeKey, setShowClaudeKey] = useState(false);
 
   const [ghToken, setGhToken] = useState(() => localStorage.getItem('github_token') || '');
@@ -28,7 +28,7 @@ export default function ViewSettings() {
   }
 
   function saveClaudeKey() {
-    localStorage.setItem('claude_api_key', claudeKey);
+    localStorage.setItem('gemini_api_key', claudeKey);
   }
 
   async function connectGitHub() {
@@ -142,13 +142,13 @@ export default function ViewSettings() {
 
         {/* Claude API */}
         <div className="card">
-          <div className="card-label">chave da claude api</div>
+          <div className="card-label">chave da gemini api</div>
           <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
             <input
               type={showClaudeKey ? 'text' : 'password'}
               value={claudeKey}
               onChange={e => setClaudeKey(e.target.value)}
-              placeholder="sk-ant-..."
+              placeholder="AIza..."
               style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--line-2)', borderRadius: 'var(--r-md)', background: 'var(--bg-2)', fontSize: 13, fontFamily: 'var(--mono)' }}
             />
             <button className="btn btn--ghost" onClick={() => setShowClaudeKey(s => !s)}>

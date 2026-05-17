@@ -120,8 +120,8 @@ export default function ViewUpload() {
       return;
     }
 
-    if (!localStorage.getItem('claude_api_key')) {
-      setError('Configure sua chave da Claude API em Configurações antes de enviar.');
+    if (!localStorage.getItem('gemini_api_key')) {
+      setError('Configure sua chave da Gemini API em Configurações antes de enviar.');
       return;
     }
 
@@ -306,11 +306,11 @@ export default function ViewUpload() {
             </p>
           </div>
 
-          {!localStorage.getItem('claude_api_key') && (
+          {!localStorage.getItem('gemini_api_key') && (
             <div className="card" style={{ marginTop: 16, borderColor: 'var(--terra)', borderStyle: 'dashed' }}>
               <div className="card-label" style={{ color: 'var(--terra-2)' }}>atenção</div>
               <p style={{ fontFamily: 'var(--serif)', fontSize: 15, margin: '8px 0 10px', color: 'var(--ink-2)' }}>
-                Configure sua chave da Claude API antes de enviar um exame.
+                Configure sua chave da Gemini API antes de enviar um exame.
               </p>
               <button className="btn btn--ghost" onClick={() => navigate('/config')}>Ir para Configurações →</button>
             </div>

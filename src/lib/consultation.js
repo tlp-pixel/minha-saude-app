@@ -153,34 +153,33 @@ Eventos:
 `;
 
 export async function generateNarrative(events) {
-  const apiKey = localStorage.getItem('claude_api_key');
-  if (!apiKey) throw new Error('Chave da Claude API não configurada.');
+  const apiKey = localStorage.getItem('gemini_api_key');
+  if (!apiKey) throw new Error('Chave da Gemini API não configurada.');
 
   const eventList = events
     .sort((a, b) => new Date(a.date) - new Date(b.date))
     .map(ev => `${ev.date} — ${ev.title}${ev.detail ? ': ' + ev.detail : ''}`)
     .join('\n');
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 512,
-      messages: [{ role: 'user', content: NARRATIVE_PROMPT + eventList }],
-    }),
-  });
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: NARRATIVE_PROMPT + eventList }] }],
+        generationConfig: { temperature: 0.7 },
+      }),
+    }
+  );
 
   if (!res.ok) {
     const err = await res.json();
-    throw new Error(`Claude API: ${err.error?.message || res.status}`);
+    throw new Error(`Gemini API: ${err.error?.message || res.status}`);
   }
 
   const data = await res.json();
-  return data.content[0].text.trim();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error('Gemini não retornou resposta.');
+  return text.trim();
 }
