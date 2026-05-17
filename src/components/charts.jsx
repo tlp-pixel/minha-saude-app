@@ -144,20 +144,36 @@ export function LineChart({ values, dates, range, unit, width = 720, height = 28
         );
       })}
 
-      {dates.map((d, i) => {
-        const lbl = new Date(d).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
-        return (
-          <text key={i} x={x(i)} y={padT + h + 22} textAnchor="middle" fontSize="10.5" fill="var(--ink-3)" fontFamily="var(--mono)">{lbl}</text>
-        );
-      })}
+      {(() => {
+        const n = dates.length;
+        const maxLabels = 9;
+        // Build set of indices to label: year boundaries + first + last
+        const show = new Set([0, n - 1]);
+        dates.forEach((d, i) => {
+          if (i > 0 && new Date(d + 'T12:00:00').getFullYear() !== new Date(dates[i - 1] + 'T12:00:00').getFullYear()) show.add(i);
+        });
+        // If still too dense, thin to evenly spaced
+        if (show.size > maxLabels || (n > maxLabels && show.size < 2)) {
+          show.clear();
+          const step = Math.ceil(n / maxLabels);
+          for (let i = 0; i < n; i += step) show.add(i);
+          show.add(n - 1);
+        }
+        return [...show].sort((a, b) => a - b).map(i => {
+          const lbl = new Date(dates[i] + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+          return (
+            <text key={i} x={x(i)} y={padT + h + 22} textAnchor="middle" fontSize="10.5" fill="var(--ink-3)" fontFamily="var(--mono)">{lbl}</text>
+          );
+        });
+      })()}
 
       {hover != null && values[hover] != null && (
         <g pointerEvents="none">
           <line x1={x(hover)} y1={padT} x2={x(hover)} y2={padT + h} stroke="var(--ink)" strokeOpacity="0.2" />
           <g transform={`translate(${x(hover)}, ${y(values[hover]) - 14})`}>
-            <rect x={-46} y={-30} width="92" height="28" rx="6" fill="var(--ink)" />
-            <text x="0" y="-16" textAnchor="middle" fill="var(--bg)" fontSize="11.5" fontFamily="var(--serif)" fontStyle="italic">{values[hover]}{unit ? ' ' + unit : ''}</text>
-            <text x="0" y="-4" textAnchor="middle" fill="var(--bg)" opacity="0.7" fontSize="9.5" fontFamily="var(--mono)">{new Date(dates[hover]).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}</text>
+            <rect x={-58} y={-36} width="116" height="34" rx="6" fill="var(--ink)" />
+            <text x="0" y="-20" textAnchor="middle" fill="var(--bg)" fontSize="13" fontFamily="var(--serif)" fontStyle="italic">{values[hover]}{unit ? ' ' + unit : ''}</text>
+            <text x="0" y="-6" textAnchor="middle" fill="var(--bg)" opacity="0.7" fontSize="10" fontFamily="var(--mono)">{new Date(dates[hover] + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}</text>
           </g>
         </g>
       )}

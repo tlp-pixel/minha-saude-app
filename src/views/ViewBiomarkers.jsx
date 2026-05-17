@@ -5,20 +5,20 @@ import { Sparkline } from '../components/charts';
 import { loadBiomarkers, isConfigured, migrateBiomarkerCategories, mergeBiomarkerAliases } from '../lib/storage';
 import { statusOf } from '../lib/utils';
 
-const CATEGORY_META = {
-  hemograma:     { label: 'Hemograma',         order: 1 },
-  leucograma:    { label: 'Leucograma',         order: 2 },
-  lipideos:      { label: 'Perfil Lipídico',    order: 3 },
-  glicemico:     { label: 'Perfil Glicêmico',   order: 4 },
-  renal:         { label: 'Função Renal',        order: 5 },
-  hepatico:      { label: 'Função Hepática',     order: 6 },
-  tireoide:      { label: 'Tireoide',            order: 7 },
-  hormonios:     { label: 'Hormônios',           order: 8 },
-  vitaminas:     { label: 'Vitaminas e Minerais',order: 9 },
-  inflamatorios: { label: 'Inflamatórios',       order: 10 },
-  bioquimica:    { label: 'Bioquímica',          order: 11 },
-  urina:         { label: 'Urina',               order: 12 },
-  outros:        { label: 'Outros',              order: 99 },
+export const CATEGORY_META = {
+  hemograma:     { label: 'Hemograma',          emoji: '🩸', order: 1 },
+  leucograma:    { label: 'Leucograma',          emoji: '🔬', order: 2 },
+  lipideos:      { label: 'Perfil Lipídico',     emoji: '🫀', order: 3 },
+  glicemico:     { label: 'Perfil Glicêmico',    emoji: '📊', order: 4 },
+  renal:         { label: 'Função Renal',         emoji: '🫘', order: 5 },
+  hepatico:      { label: 'Função Hepática',      emoji: '🫁', order: 6 },
+  tireoide:      { label: 'Tireoide',             emoji: '⚡', order: 7 },
+  hormonios:     { label: 'Hormônios',            emoji: '⚗️', order: 8 },
+  vitaminas:     { label: 'Vitaminas e Minerais', emoji: '💊', order: 9 },
+  inflamatorios: { label: 'Inflamatórios',        emoji: '🔥', order: 10 },
+  bioquimica:    { label: 'Bioquímica',           emoji: '🧪', order: 11 },
+  urina:         { label: 'Urina',                emoji: '💧', order: 12 },
+  outros:        { label: 'Outros',               emoji: '📋', order: 99 },
 };
 
 function BioCard({ b, navigate }) {
@@ -31,18 +31,18 @@ function BioCard({ b, navigate }) {
   const delta = prev != null && v != null ? ((v - prev) / prev) * 100 : null;
 
   return (
-    <button key={b.id} className="card" onClick={() => navigate(`/biomarcadores/${b.id}`)} style={{ textAlign: 'left', cursor: 'pointer' }}>
+    <button className="card" onClick={() => navigate(`/biomarcadores/${b.id}`)} style={{ textAlign: 'left', cursor: 'pointer' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-        <div style={{ fontFamily: 'var(--serif)', fontSize: 16, lineHeight: 1.2 }}>{b.name}</div>
-        {status === 'warn' && <span className="pill pill--terra">no limite</span>}
-        {status === 'bad'  && <span className="pill pill--rust">fora</span>}
+        <div style={{ fontFamily: 'var(--serif)', fontSize: 15, lineHeight: 1.2 }}>{b.name}</div>
+        {status === 'warn' && <span className="pill pill--terra" style={{ flexShrink: 0 }}>limite</span>}
+        {status === 'bad'  && <span className="pill pill--rust" style={{ flexShrink: 0 }}>fora</span>}
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 12 }}>
         <span className="num" style={{
-          fontSize: 28, lineHeight: 1,
-          color: status === 'ok' ? 'var(--ink)' : status === 'warn' ? 'var(--terra-2)' : status === 'bad' ? 'var(--rust)' : 'var(--ink)',
+          fontSize: 26, lineHeight: 1,
+          color: status === 'bad' ? 'var(--rust)' : status === 'warn' ? 'var(--terra-2)' : 'var(--ink)',
         }}>{v ?? '—'}</span>
-        <span className="subtle" style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{b.unit}</span>
+        <span className="subtle" style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{b.unit}</span>
         {delta != null && (
           <span className={`trend-arrow ${delta > 1 ? 'up' : delta < -1 ? 'down' : 'flat'}`} style={{ marginLeft: 'auto', fontSize: 11 }}>
             {delta > 0 ? '+' : ''}{delta.toFixed(1)}%
@@ -50,18 +50,44 @@ function BioCard({ b, navigate }) {
         )}
       </div>
       {b.range && (
-        <div className="subtle tiny" style={{ marginTop: 4, fontFamily: 'var(--mono)' }}>
+        <div className="subtle tiny" style={{ marginTop: 3, fontFamily: 'var(--mono)' }}>
           ref. {b.range[0]}–{b.range[1]}
         </div>
       )}
       {values.length > 1 && (
-        <div style={{ marginTop: 12 }}>
-          <Sparkline values={values} range={b.range} width={240} height={34} />
+        <div style={{ marginTop: 10 }}>
+          <Sparkline values={values} range={b.range} width={220} height={30} />
         </div>
       )}
       <div className="subtle tiny" style={{ marginTop: 8, fontFamily: 'var(--mono)' }}>
-        {measurements.length} medição{measurements.length !== 1 ? 'ões' : ''} · último: {last?.date ? new Date(last.date + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }) : '—'}
+        {measurements.length} medição{measurements.length !== 1 ? 'ões' : ''} · {last?.date ? new Date(last.date + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }) : '—'}
       </div>
+    </button>
+  );
+}
+
+function CategoryCard({ cat, meta, bios, navigate, onClick }) {
+  const total = bios.length;
+  const outOfRange = bios.filter(b => {
+    const v = b.measurements?.at(-1)?.value;
+    return b.range && v != null && statusOf(v, b.range) !== 'ok';
+  }).length;
+  const withData = bios.filter(b => (b.measurements?.length || 0) > 1).length;
+
+  return (
+    <button className="card" onClick={onClick} style={{ textAlign: 'left', cursor: 'pointer', position: 'relative' }}>
+      <div style={{ fontSize: 28, marginBottom: 10 }}>{meta?.emoji ?? '📋'}</div>
+      <div style={{ fontFamily: 'var(--serif)', fontSize: 18, fontStyle: 'italic', marginBottom: 6 }}>{meta?.label ?? cat}</div>
+      <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginBottom: 10 }}>
+        {total} marcador{total !== 1 ? 'es' : ''}
+        {withData > 0 ? ` · ${withData} com histórico` : ''}
+      </div>
+      {outOfRange > 0 && (
+        <span className="pill pill--rust">{outOfRange} fora da faixa</span>
+      )}
+      {outOfRange === 0 && total > 0 && bios.some(b => b.range) && (
+        <span className="pill pill--sage">✓ todos ok</span>
+      )}
     </button>
   );
 }
@@ -70,9 +96,9 @@ export default function ViewBiomarkers() {
   const navigate = useNavigate();
   const [biomarkers, setBiomarkers] = useState({});
   const [loading, setLoading] = useState(true);
+  const [selectedCat, setSelectedCat] = useState(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
-  const [groupBy, setGroupBy] = useState('category');
 
   useEffect(() => {
     if (!isConfigured()) { setLoading(false); return; }
@@ -88,40 +114,44 @@ export default function ViewBiomarkers() {
     .filter(b => b.measurements?.length > 0)
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
-  const withRange = bioList.filter(b => b.range);
-  const outOfRange = withRange.filter(b => {
-    const last = b.measurements?.at(-1)?.value;
-    return last != null && statusOf(last, b.range) !== 'ok';
+  // Group by category
+  const grouped = {};
+  bioList.forEach(b => {
+    const cat = b.category || 'outros';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(b);
   });
+  const sortedCats = Object.keys(grouped).sort(
+    (a, b) => (CATEGORY_META[a]?.order ?? 99) - (CATEGORY_META[b]?.order ?? 99)
+  );
 
-  const filtered = bioList.filter(b => {
+  const outOfRange = bioList.filter(b => {
+    const v = b.measurements?.at(-1)?.value;
+    return b.range && v != null && statusOf(v, b.range) !== 'ok';
+  }).length;
+
+  // When a category is selected: filter + search within it
+  const catBios = selectedCat ? (grouped[selectedCat] || []) : bioList;
+  const filtered = catBios.filter(b => {
     if (search && !b.name.toLowerCase().includes(search.toLowerCase())) return false;
     if (filter === 'fora') {
-      const last = b.measurements?.at(-1)?.value;
-      return b.range && last != null && statusOf(last, b.range) !== 'ok';
+      const v = b.measurements?.at(-1)?.value;
+      return b.range && v != null && statusOf(v, b.range) !== 'ok';
     }
     if (filter === 'sem-ref') return !b.range;
     return true;
   });
 
-  const isSearching = search.length > 0 || filter !== 'all';
-
-  const grouped = {};
-  filtered.forEach(b => {
-    const cat = b.category || 'outros';
-    if (!grouped[cat]) grouped[cat] = [];
-    grouped[cat].push(b);
-  });
-  const sortedCategories = Object.keys(grouped).sort(
-    (a, b) => (CATEGORY_META[a]?.order ?? 99) - (CATEGORY_META[b]?.order ?? 99)
-  );
+  const isBrowsing = selectedCat || search || filter !== 'all';
 
   return (
     <div className="fade-in">
       <PageHead
-        eyebrow={`${bioList.length} biomarcadores rastreados`}
+        eyebrow={`${bioList.length} biomarcadores · ${sortedCats.length} categorias`}
         title="<em>Biomarcadores</em>"
-        sub="Tudo que foi extraído dos seus PDFs. Clique para ver a evolução temporal."
+        sub={selectedCat
+          ? `${CATEGORY_META[selectedCat]?.label ?? selectedCat} — ${catBios.length} marcadores`
+          : 'Clique em uma categoria para explorar, ou busque diretamente.'}
       />
 
       {loading ? (
@@ -129,66 +159,75 @@ export default function ViewBiomarkers() {
       ) : bioList.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '64px 0' }}>
           <div style={{ fontFamily: 'var(--serif)', fontSize: 22, marginBottom: 10 }}>Nenhum biomarcador ainda</div>
-          <div className="subtle" style={{ fontSize: 14, marginBottom: 24 }}>Envie um PDF de exame e os marcadores aparecem aqui automaticamente.</div>
+          <div className="subtle" style={{ fontSize: 14, marginBottom: 24 }}>Envie um PDF e os marcadores aparecem aqui.</div>
           <button className="btn btn--sage" onClick={() => navigate('/upload')}>＋ Enviar PDF</button>
         </div>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Search + filter bar */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 22, flexWrap: 'wrap', alignItems: 'center' }}>
+            {selectedCat && (
+              <button
+                onClick={() => { setSelectedCat(null); setSearch(''); setFilter('all'); }}
+                style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontFamily: 'var(--mono)', background: 'var(--bg-2)', border: '1px solid var(--line-2)', color: 'var(--ink-2)', cursor: 'pointer' }}
+              >
+                ← categorias
+              </button>
+            )}
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar biomarcador…"
-              style={{ padding: '8px 14px', border: '1px solid var(--line-2)', borderRadius: 999, background: 'var(--bg-2)', fontSize: 13, fontFamily: 'var(--serif)', width: 240 }}
+              placeholder={selectedCat ? `Buscar em ${CATEGORY_META[selectedCat]?.label ?? selectedCat}…` : 'Buscar biomarcador…'}
+              style={{ padding: '8px 14px', border: '1px solid var(--line-2)', borderRadius: 999, background: 'var(--bg-2)', fontSize: 13, fontFamily: 'var(--serif)', width: 220 }}
             />
-            <div style={{ display: 'flex', gap: 6, padding: 4, background: 'var(--bg-2)', borderRadius: 999 }}>
-              {[
-                { id: 'all', label: `todos (${bioList.length})` },
-                { id: 'fora', label: `fora da faixa (${outOfRange.length})` },
-                { id: 'sem-ref', label: `sem referência` },
-              ].map(f => (
-                <button key={f.id} onClick={() => setFilter(f.id)} style={{
-                  padding: '5px 12px', borderRadius: 999, fontSize: 12, fontFamily: 'var(--mono)',
-                  background: filter === f.id ? 'var(--bg)' : 'transparent',
-                  color: filter === f.id ? 'var(--ink)' : 'var(--ink-3)',
-                }}>{f.label}</button>
-              ))}
-            </div>
-            {!isSearching && (
-              <div style={{ display: 'flex', gap: 6, padding: 4, background: 'var(--bg-2)', borderRadius: 999, marginLeft: 'auto' }}>
+            {isBrowsing && (
+              <div style={{ display: 'flex', gap: 6, padding: 4, background: 'var(--bg-2)', borderRadius: 999 }}>
                 {[
-                  { id: 'category', label: 'por categoria' },
-                  { id: 'flat', label: 'lista' },
-                ].map(g => (
-                  <button key={g.id} onClick={() => setGroupBy(g.id)} style={{
+                  { id: 'all',      label: `todos (${catBios.length})` },
+                  { id: 'fora',     label: `fora (${catBios.filter(b => { const v = b.measurements?.at(-1)?.value; return b.range && v != null && statusOf(v, b.range) !== 'ok'; }).length})` },
+                  { id: 'sem-ref',  label: 'sem ref.' },
+                ].map(f => (
+                  <button key={f.id} onClick={() => setFilter(f.id)} style={{
                     padding: '5px 12px', borderRadius: 999, fontSize: 12, fontFamily: 'var(--mono)',
-                    background: groupBy === g.id ? 'var(--bg)' : 'transparent',
-                    color: groupBy === g.id ? 'var(--ink)' : 'var(--ink-3)',
-                  }}>{g.label}</button>
+                    background: filter === f.id ? 'var(--bg)' : 'transparent',
+                    color: filter === f.id ? 'var(--ink)' : 'var(--ink-3)',
+                  }}>{f.label}</button>
                 ))}
               </div>
             )}
+            {!isBrowsing && outOfRange > 0 && (
+              <button onClick={() => setFilter('fora')} className="pill pill--rust" style={{ cursor: 'pointer' }}>
+                {outOfRange} fora da faixa
+              </button>
+            )}
           </div>
 
-          {(isSearching || groupBy === 'flat') ? (
+          {/* Catalog: category cards */}
+          {!isBrowsing && (
+            <div className="grid grid-3" style={{ marginBottom: 40 }}>
+              {sortedCats.map(cat => (
+                <CategoryCard
+                  key={cat}
+                  cat={cat}
+                  meta={CATEGORY_META[cat]}
+                  bios={grouped[cat]}
+                  navigate={navigate}
+                  onClick={() => setSelectedCat(cat)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Biomarker cards (when category selected or searching) */}
+          {isBrowsing && (
             <div className="grid grid-3">
               {filtered.map(b => <BioCard key={b.id} b={b} navigate={navigate} />)}
+              {filtered.length === 0 && (
+                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px 0', color: 'var(--ink-3)', fontFamily: 'var(--serif)', fontSize: 16 }}>
+                  Nenhum biomarcador encontrado.
+                </div>
+              )}
             </div>
-          ) : (
-            sortedCategories.map(cat => (
-              <div key={cat} style={{ marginBottom: 40 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                  <div style={{ fontFamily: 'var(--serif)', fontSize: 18, fontStyle: 'italic' }}>
-                    {CATEGORY_META[cat]?.label ?? cat}
-                  </div>
-                  <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
-                  <div className="subtle tiny" style={{ fontFamily: 'var(--mono)' }}>{grouped[cat].length}</div>
-                </div>
-                <div className="grid grid-3">
-                  {grouped[cat].map(b => <BioCard key={b.id} b={b} navigate={navigate} />)}
-                </div>
-              </div>
-            ))
           )}
         </>
       )}

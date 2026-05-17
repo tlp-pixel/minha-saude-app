@@ -165,22 +165,46 @@ export function inferCategory(name) {
 }
 
 const BIOMARKER_ALIASES = [
-  { pattern: /vitamina.?b.?12|cianocobalamina|cobalamina/i,           canonical: 'Vitamina B12',         category: 'vitaminas' },
-  { pattern: /vitamina.?d|25.?oh.?vitam|25.?hidroxi|calcifediol/i,    canonical: 'Vitamina D',           category: 'vitaminas' },
-  { pattern: /\bglicose\b|\bglicemia\b/i,                             canonical: 'Glicose',              category: 'glicemico' },
-  { pattern: /hemoglobina.glicada|hba1c|hb.?a1c/i,                    canonical: 'Hemoglobina Glicada',  category: 'glicemico' },
-  { pattern: /\bpcr\b|proteina.c.reativa|proteína.c.reativa/i,        canonical: 'PCR',                  category: 'inflamatorios' },
-  { pattern: /\bureia\b|\buréia\b/i,                                   canonical: 'Ureia',                category: 'renal' },
-  { pattern: /\bferritina\b/i,                                         canonical: 'Ferritina',            category: 'vitaminas' },
-  { pattern: /ferro.seric|ferro.seríco/i,                             canonical: 'Ferro Sérico',         category: 'vitaminas' },
-  { pattern: /colesterol.total/i,                                      canonical: 'Colesterol Total',     category: 'lipideos' },
-  { pattern: /\bhdl\b|hdl.colesterol/i,                               canonical: 'HDL Colesterol',       category: 'lipideos' },
-  { pattern: /\bldl\b|ldl.colesterol/i,                               canonical: 'LDL Colesterol',       category: 'lipideos' },
-  { pattern: /\bvldl\b|vldl.colesterol/i,                             canonical: 'VLDL Colesterol',      category: 'lipideos' },
-  { pattern: /triglicerid/i,                                           canonical: 'Triglicerídeos',       category: 'lipideos' },
-  { pattern: /\btsh\b/i,                                               canonical: 'TSH',                  category: 'tireoide' },
-  { pattern: /t4.livre|tiroxina.livre/i,                              canonical: 'T4 Livre',             category: 'tireoide' },
-  { pattern: /t3.livre/i,                                              canonical: 'T3 Livre',             category: 'tireoide' },
+  // Vitaminas
+  { pattern: /vitamina.?b.?12|cianocobalamina|cobalamina/i,                       canonical: 'Vitamina B12',        category: 'vitaminas' },
+  { pattern: /vitamina.?d\b|25.?oh|25.?hidroxi|calcifediol|calciferol/i,          canonical: 'Vitamina D',          category: 'vitaminas' },
+  { pattern: /acido.?folico|ácido.?fólico|\bfolato\b/i,                           canonical: 'Ácido Fólico',        category: 'vitaminas' },
+  { pattern: /\bferritina\b/i,                                                     canonical: 'Ferritina',           category: 'vitaminas' },
+  { pattern: /ferro.?seric|ferro.?séric/i,                                         canonical: 'Ferro Sérico',        category: 'vitaminas' },
+  { pattern: /\btibc\b|capacidade.*liga.*ferro|liga.*total.*ferro/i,               canonical: 'TIBC',                category: 'vitaminas' },
+  { pattern: /\btransferrina\b/i,                                                  canonical: 'Transferrina',        category: 'vitaminas' },
+  // Glicêmico
+  { pattern: /\bglicose\b|\bglicemia\b/i,                                          canonical: 'Glicose',             category: 'glicemico' },
+  { pattern: /hemoglobina.glicada|hba1c|hb.?a1c/i,                                canonical: 'Hemoglobina Glicada', category: 'glicemico' },
+  { pattern: /\binsulina\b/i,                                                      canonical: 'Insulina',            category: 'glicemico' },
+  // Lipídeos — IMPORTANT: match "total" first (before bare colesterol)
+  { pattern: /colesterol.total|colesterol\s*[-–]\s*total/i,                        canonical: 'Colesterol Total',    category: 'lipideos' },
+  { pattern: /\bhdl\b|hdl.colesterol|colesterol.hdl/i,                             canonical: 'HDL Colesterol',      category: 'lipideos' },
+  { pattern: /\bldl\b|ldl.colesterol|colesterol.ldl/i,                             canonical: 'LDL Colesterol',      category: 'lipideos' },
+  { pattern: /\bvldl\b|vldl.colesterol|colesterol.vldl/i,                          canonical: 'VLDL Colesterol',     category: 'lipideos' },
+  { pattern: /triglicerid/i,                                                        canonical: 'Triglicerídeos',      category: 'lipideos' },
+  // Inflamatórios
+  { pattern: /\bpcr\b|proteina.?c.?reativa|proteína.?c.?reativa/i,                canonical: 'PCR',                 category: 'inflamatorios' },
+  { pattern: /\bvhs\b|velocidade.hemossedimenta/i,                                 canonical: 'VHS',                 category: 'inflamatorios' },
+  // Renal
+  { pattern: /\bureia\b|\buréia\b/i,                                               canonical: 'Ureia',               category: 'renal' },
+  { pattern: /\bcreatinina\b/i,                                                    canonical: 'Creatinina',          category: 'renal' },
+  { pattern: /acido.?uric|ácido.?úric/i,                                           canonical: 'Ácido Úrico',         category: 'renal' },
+  // Hepático
+  { pattern: /\btgo\b|\bast\b|aspartato.aminotransfer/i,                           canonical: 'TGO (AST)',           category: 'hepatico' },
+  { pattern: /\btgp\b|\balt\b|alanina.aminotransfer/i,                             canonical: 'TGP (ALT)',           category: 'hepatico' },
+  { pattern: /gama.?gt|\bggt\b|gamaglutamil/i,                                    canonical: 'Gama GT',             category: 'hepatico' },
+  { pattern: /fosfatase.?alcalina/i,                                               canonical: 'Fosfatase Alcalina',  category: 'hepatico' },
+  // Tireoide — CRITICAL: livre patterns must come BEFORE total patterns
+  { pattern: /t3.*livre|triiodotironina.*livre/i,                                  canonical: 'T3 Livre',            category: 'tireoide' },
+  { pattern: /t4.*livre|tiroxina.*livre/i,                                          canonical: 'T4 Livre',            category: 'tireoide' },
+  { pattern: /\btsh\b/i,                                                            canonical: 'TSH',                 category: 'tireoide' },
+  { pattern: /triiodotironina(?![\s\S]*livre)|t3\s*[\(\[]\s*triiodot|\bt3\b(?![\s\S]{0,10}livre)/i, canonical: 'T3 Total', category: 'tireoide' },
+  { pattern: /tiroxina(?![\s\S]*livre)|t4\s*[\(\[]\s*tiroxina|\bt4\b(?![\s\S]{0,10}livre)/i,        canonical: 'T4 Total', category: 'tireoide' },
+  { pattern: /anti.?tpo|antiperoxidase|anticorpo.*tireoid|tireoid.*anticorpo/i,    canonical: 'Anti-TPO',            category: 'tireoide' },
+  { pattern: /anti.?tg|anti.?tiroglobulin/i,                                       canonical: 'Anti-Tireoglobulina', category: 'tireoide' },
+  // TSH
+  { pattern: /\btsh\b/i,                                                            canonical: 'TSH',                 category: 'tireoide' },
 ];
 
 export async function mergeBiomarkerAliases() {
