@@ -16,33 +16,52 @@ export async function extractTextFromPDF(file) {
   return { text: pages.join('\n\n'), pages: pdf.numPages };
 }
 
-const EXTRACTION_PROMPT = `Você receberá o texto de um exame laboratorial brasileiro.
+const EXTRACTION_PROMPT = `Você receberá o texto de um exame laboratorial ou laudo de imagem brasileiro.
 
-Extraia ABSOLUTAMENTE TODOS os biomarcadores e resultados numéricos que aparecerem.
-Não pule nenhum — hemograma completo, bioquímica, hormônios, vitaminas, urina, tudo.
+═══ TAREFA 1 — BIOMARCADORES NUMÉRICOS ═══
+Extraia ABSOLUTAMENTE TODOS os resultados numéricos. Não pule nenhum.
 
-REGRA IMPORTANTE — VALORES DUPLOS (absoluto + percentual):
-Quando um marcador aparecer com dois valores (ex: Neutrófilos 65% e 4.500 /mm³), extraia os DOIS como entradas separadas:
-  - Uma com o valor percentual, unidade "%" e a faixa de referência em %
-  - Outra com o valor absoluto, unidade "/mm³" (ou "10³/µL" etc.) e a faixa de referência absoluta
-Isso se aplica a todos os componentes do leucograma: Neutrófilos, Linfócitos, Monócitos, Eosinófilos, Basófilos, Bastões, etc.
-Use a faixa de referência que corresponde à unidade extraída — nunca misture faixa de % com valor absoluto.
+VALORES DUPLOS (absoluto + percentual):
+Neutrófilos, Linfócitos, Monócitos, Eosinófilos, Basófilos, Bastões — quando aparecerem % E valor absoluto, extraia os DOIS como entradas separadas. Acrescente " %" ou " Abs." ao nome. Use a faixa de referência que corresponde à unidade — nunca misture.
 
-Para cada resultado, retorne um objeto JSON com:
-- name: nome do exame exatamente como aparece no laudo (acrescente " %" ou " Abs." ao nome quando for necessário distinguir os dois)
-- value: valor numérico (número, não string)
-- unit: unidade de medida
-- refLow: limite inferior da faixa de referência correspondente à unidade (null se não informado)
-- refHigh: limite superior da faixa de referência correspondente à unidade (null se não informado)
-- status: "normal" | "alto" | "baixo" | "indeterminado"
-- rawText: trecho original do texto com esse resultado
+NOMES PADRONIZADOS — use SEMPRE estas formas canônicas:
+• Glicose (não "Glicemia", "Glicemia em Jejum", "Glicemia de Jejum")
+• Hemoglobina Glicada (não "HbA1c", "Hb A1c", "A1c")
+• Ureia (não "Uréia")
+• Colesterol Total · HDL Colesterol · LDL Colesterol · VLDL Colesterol · Triglicerídeos
+• TSH · T4 Livre · T3 Livre · T4 Total · T3 Total
+• Vitamina D (não "25-OH Vitamina D", "25-Hidroxivitamina D")
+• Vitamina B12 (não "Cobalamina", "Cianocobalamina")
+• Ferritina · Ferro Sérico · Transferrina · TIBC
+• PCR (não "Proteína C Reativa", "Proteína C-Reativa")
+• Insulina · Peptídeo C
+• PSA Total · PSA Livre
+• Para leucograma use: "Neutrófilos %" / "Neutrófilos Abs." / "Linfócitos %" / "Linfócitos Abs." etc.
 
-Retorne SOMENTE um JSON válido neste formato:
+CATEGORIA — atribua uma das categorias abaixo a cada resultado:
+hemograma | leucograma | bioquimica | lipideos | glicemico | renal | hepatico | tireoide | hormonios | vitaminas | inflamatorios | urina | outros
+
+═══ TAREFA 2 — CONCLUSÃO DE LAUDOS DE IMAGEM ═══
+Se o texto for um laudo de imagem (ultrassom, vulvoscopia, mamografia, colposcopia, tomografia, ressonância, etc.), extraia o campo "conclusions" com o texto COMPLETO da seção "Conclusão", "Impressão Diagnóstica", ou "Achados" do laudo (como aparece no documento).
+
+═══ TAREFA 3 — NÓDULOS DE MAMA ═══
+Se o laudo for de mama (mamografia ou ultrassom de mama), extraia um array "nodules". Para cada nódulo:
+- side: "direita" | "esquerda" | "bilateral"
+- location: texto do quadrante/localização exato como no laudo
+- size: número em mm (só o número, null se não informado)
+- birads: categoria BI-RADS se mencionada (null se não)
+- description: texto descritivo resumido do nódulo
+
+Formato de resposta — SOMENTE JSON válido, nada mais:
 {
-  "lab": "nome do laboratório",
+  "lab": "nome do laboratório ou clínica",
   "date": "YYYY-MM-DD",
   "patientName": "nome se encontrar, null se não",
-  "results": [ { "name": "...", "value": 0, "unit": "...", "refLow": 0, "refHigh": 0, "status": "normal", "rawText": "..." } ]
+  "conclusions": "texto completo da conclusão/impressão do laudo de imagem, null se não aplicável",
+  "nodules": [],
+  "results": [
+    { "name": "...", "value": 0, "unit": "...", "refLow": 0, "refHigh": 0, "status": "normal", "category": "bioquimica", "rawText": "..." }
+  ]
 }
 
 Texto do exame:
@@ -82,7 +101,7 @@ export async function extractBiomarkersWithGemini(text) {
 }
 
 export function normalizeResults(claudeOutput) {
-  const { lab, date, results } = claudeOutput;
+  const { lab, date, results, conclusions, nodules } = claudeOutput;
 
   const normalized = results.map((r, i) => ({
     id: `r${i}`,
@@ -91,6 +110,7 @@ export function normalizeResults(claudeOutput) {
     unit: r.unit || '',
     range: (r.refLow != null && r.refHigh != null) ? [r.refLow, r.refHigh] : null,
     status: r.status || 'indeterminado',
+    category: r.category || 'outros',
     rawText: r.rawText || '',
     unverified: false,
   })).filter(r => !isNaN(r.value));
@@ -103,6 +123,8 @@ export function normalizeResults(claudeOutput) {
     date: detectedDate,
     lab: lab || 'Laboratório',
     results: normalized,
+    conclusions: conclusions || null,
+    nodules: Array.isArray(nodules) ? nodules : [],
     extractedAt: new Date().toISOString(),
   };
 }

@@ -106,10 +106,11 @@ export async function mergeParsedExamIntoBiomarkers(parsed) {
     if (r.value == null || isNaN(r.value)) continue;
     const bioId = normalizeBioId(r.name);
     if (!biomarkers[bioId]) {
-      biomarkers[bioId] = { id: bioId, name: r.name, unit: r.unit, range: r.range, measurements: [] };
+      biomarkers[bioId] = { id: bioId, name: r.name, unit: r.unit, range: r.range, category: r.category || 'outros', measurements: [] };
     }
     const bio = biomarkers[bioId];
     if (r.range && !bio.range) bio.range = r.range;
+    if (r.category && bio.category === 'outros') bio.category = r.category;
     const exists = bio.measurements.some(m => m.examId === parsed.examId);
     if (!exists) {
       bio.measurements.push({ date: parsed.date, examId: parsed.examId, value: r.value });
@@ -138,6 +139,44 @@ export async function deleteExam(examId) {
     Object.entries(biomarkers).filter(([, b]) => b.measurements.length > 0)
   );
   await saveBiomarkers(cleaned);
+}
+
+const CATEGORY_RULES = [
+  [/hemoglobin|hematocrit|eritrocit|hemacia|plaqueta|vcm|hcm|chcm|rdw|reticuloc/i, 'hemograma'],
+  [/neutrofil|linfocit|monocit|eosinofil|basofil|leucocit|baston|segmenta/i, 'leucograma'],
+  [/colesterol|triglicerid|hdl|ldl|vldl|lipid/i, 'lipideos'],
+  [/glicose|glicemia|insulina|hba1c|hemoglobina glicada|peptidio c|peptídeo c/i, 'glicemico'],
+  [/creatinin|ureia|uréia|acido uric|ácido úrico|tfg|clearance/i, 'renal'],
+  [/tgo|tgp|alt|ast|gama|ggt|fosfatase|bilirrub|albumin|proteina total|globulin/i, 'hepatico'],
+  [/tsh|t3|t4|tireoide|tiroxin/i, 'tireoide'],
+  [/testosteron|estradiol|progesterona|fsh|lh|prolactin|dhea|cortisol|androstenedion/i, 'hormonios'],
+  [/vitamina|ferritin|ferro seric|transferrin|tibc|folato|acido folico|b12|cobalamina|zinco|magnesio/i, 'vitaminas'],
+  [/pcr|proteina c|vhs|interleucina|tnf/i, 'inflamatorios'],
+  [/urina|densidade urin|ph urin|leuco.*urina|nitrito|proteina.*urina|glicose.*urina/i, 'urina'],
+  [/sodio|potassio|cloro|calcio|fosforo|magnesio|bicarbonato/i, 'bioquimica'],
+];
+
+export function inferCategory(name) {
+  if (!name) return 'outros';
+  for (const [re, cat] of CATEGORY_RULES) {
+    if (re.test(name)) return cat;
+  }
+  return 'outros';
+}
+
+export async function migrateBiomarkerCategories() {
+  const biomarkers = await loadBiomarkers();
+  let changed = false;
+  for (const bio of Object.values(biomarkers)) {
+    if (!bio.category || bio.category === 'outros') {
+      const guessed = inferCategory(bio.name);
+      if (guessed !== 'outros') {
+        bio.category = guessed;
+        changed = true;
+      }
+    }
+  }
+  if (changed) await saveBiomarkers(biomarkers);
 }
 
 export async function exportCSV() {

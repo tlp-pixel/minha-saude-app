@@ -58,6 +58,38 @@ export default function ViewExamDetail() {
         }
       />
 
+      {exam.conclusions && (
+        <div className="card" style={{ marginBottom: 24, borderLeft: '3px solid var(--sage)' }}>
+          <div className="card-label">conclusão / impressão diagnóstica</div>
+          <p style={{ fontFamily: 'var(--serif)', fontSize: 15, lineHeight: 1.6, margin: '8px 0 0', color: 'var(--ink-2)', whiteSpace: 'pre-wrap' }}>
+            {exam.conclusions}
+          </p>
+        </div>
+      )}
+
+      {exam.nodules?.length > 0 && (
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div className="card-label">nódulos identificados — {exam.nodules.length} nódulo{exam.nodules.length !== 1 ? 's' : ''}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
+            {exam.nodules.map((n, i) => (
+              <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '10px 0', borderBottom: i < exam.nodules.length - 1 ? '1px solid var(--line)' : 'none' }}>
+                <div style={{ minWidth: 64, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)', paddingTop: 2 }}>
+                  mama {n.side}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: 'var(--serif)', fontSize: 15 }}>{n.location || '—'}</div>
+                  {n.description && <div className="subtle tiny" style={{ marginTop: 3 }}>{n.description}</div>}
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                  {n.size && <span className="pill">{n.size} mm</span>}
+                  {n.birads && <span className="pill pill--terra">BI-RADS {n.birads}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-3" style={{ marginBottom: 32 }}>
         <div className="card">
           <div className="card-label">na faixa de referência</div>
