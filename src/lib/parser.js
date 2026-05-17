@@ -65,11 +65,10 @@ Se o laudo for de mama (mamografia ou ultrassom de mama), extraia um array "nodu
 ATENÇÃO para laudos em prosa: quando o laudo listar nódulos com frases como "- às 3 horas, medindo 1,1 x 0,5 x 1,0 cm" — cada traço/item da lista é um nódulo separado. Preste atenção à separação entre "À esquerda:" e "À direita:" para atribuir o lado correto.
 
 ═══ TAREFA 4 — MÉDICO SOLICITANTE ═══
-Extraia o campo "doctor" com o nome completo do médico SOLICITANTE — aquele que PEDIU/REQUISITOU o exame.
-ATENÇÃO: NÃO é o médico que laudou, assinou, executou ou é responsável técnico pelo exame.
-Campos que indicam o SOLICITANTE: "Médico Solicitante", "Solicitante", "Requisitante", "Pedido por", "Médico Pedinte".
-Campos que NÃO são o solicitante: "Médico Laudante", "Médico Executante", "Responsável Técnico", "Assinatura", "CRM do Laudo".
-Sem CRM, sem títulos como Dr./Dra., sem especialidade. Null se não encontrar o solicitante.
+Procure no cabeçalho do documento pelo campo "Solicitante:" ou "Médico Solicitante:" — é quem PEDIU o exame.
+Exemplo: "Solicitante: LAURA MOCELLIN TEIXEIRA" → retorne "Laura Mocellin Teixeira"
+NÃO retorne quem laudou/assinou: ignore campos "Laudado por", "Laudante", "Responsável Técnico", "Executante".
+Sem Dr./Dra., sem CRM. Se não houver campo "Solicitante" explícito no documento, retorne null.
 
 IMPORTANTE — NÃO extraia como biomarcador:
 • CRM, RG, CPF, número de registro profissional
@@ -97,7 +96,7 @@ export async function extractDoctorFromText(text) {
   const apiKey = localStorage.getItem('gemini_api_key');
   if (!apiKey) return null;
   const snippet = text.slice(0, 3000);
-  const prompt = `Neste texto de exame laboratorial ou laudo, qual é o nome completo do médico SOLICITANTE?\nO SOLICITANTE é quem PEDIU o exame (campo "Médico Solicitante", "Solicitante", "Requisitante").\nNÃO é o médico laudante, executante, responsável técnico ou quem assinou o laudo.\nResponda APENAS com o nome (sem CRM, sem "Dr."/"Dra.", sem especialidade).\nSe não encontrar o SOLICITANTE, responda exatamente: null\n\nTexto:\n${snippet}`;
+  const prompt = `Neste texto, encontre o campo "Solicitante:" ou "Médico Solicitante:" no cabeçalho — é quem PEDIU o exame.\nExemplo: "Solicitante: LAURA MOCELLIN TEIXEIRA" → responda "Laura Mocellin Teixeira"\nIgnore completamente quem laudou, assinou ou é responsável técnico.\nResponda APENAS com o nome (sem Dr./Dra., sem CRM).\nSe não houver campo "Solicitante" explícito, responda exatamente: null\n\nTexto:\n${snippet}`;
   try {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
