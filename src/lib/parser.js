@@ -18,28 +18,35 @@ export async function extractTextFromPDF(file) {
 
 const EXTRACTION_PROMPT = `Você receberá o texto de um exame laboratorial ou laudo de imagem brasileiro.
 
-═══ TAREFA 1 — BIOMARCADORES NUMÉRICOS ═══
-Extraia ABSOLUTAMENTE TODOS os resultados numéricos. Não pule nenhum.
+═══ TAREFA 1 — RESULTADOS NUMÉRICOS ═══
+Extraia ABSOLUTAMENTE TODOS os valores numéricos. Não pule nenhum.
 
-VALORES DUPLOS (absoluto + percentual):
-Neutrófilos, Linfócitos, Monócitos, Eosinófilos, Basófilos, Bastões — quando aparecerem % E valor absoluto, extraia os DOIS como entradas separadas. Acrescente " %" ou " Abs." ao nome. Use a faixa de referência que corresponde à unidade — nunca misture.
+── EXAMES LABORATORIAIS ──
+VALORES DUPLOS (leucograma): Neutrófilos, Linfócitos, Monócitos, Eosinófilos, Basófilos, Bastões — quando aparecerem % E valor absoluto, extraia os DOIS. Acrescente " %" ou " Abs." ao nome.
 
-NOMES PADRONIZADOS — use SEMPRE estas formas canônicas:
-• Glicose (não "Glicemia", "Glicemia em Jejum", "Glicemia de Jejum")
-• Hemoglobina Glicada (não "HbA1c", "Hb A1c", "A1c")
-• Ureia (não "Uréia")
+NOMES PADRONIZADOS:
+• Glicose · Hemoglobina Glicada · Ureia · Creatinina · Insulina · Peptídeo C
 • Colesterol Total · HDL Colesterol · LDL Colesterol · VLDL Colesterol · Triglicerídeos
-• TSH · T4 Livre · T3 Livre · T4 Total · T3 Total
-• Vitamina D (não "25-OH Vitamina D", "25-Hidroxivitamina D")
-• Vitamina B12 (não "Cobalamina", "Cianocobalamina")
-• Ferritina · Ferro Sérico · Transferrina · TIBC
-• PCR (não "Proteína C Reativa", "Proteína C-Reativa")
-• Insulina · Peptídeo C
-• PSA Total · PSA Livre
-• Para leucograma use: "Neutrófilos %" / "Neutrófilos Abs." / "Linfócitos %" / "Linfócitos Abs." etc.
+• TSH · T4 Livre · T4 Total · T3 Livre · T3 Total
+• Vitamina D · Vitamina B12 · Ácido Fólico · Ferritina · Ferro Sérico · TIBC
+• PCR · VHS · PSA Total · PSA Livre
+• Para leucograma: "Neutrófilos %" / "Neutrófilos Abs." / "Linfócitos %" / etc.
 
-CATEGORIA — atribua uma das categorias abaixo a cada resultado:
-hemograma | leucograma | bioquimica | lipideos | glicemico | renal | hepatico | tireoide | hormonios | vitaminas | inflamatorios | urina | outros
+── LAUDOS DE IMAGEM (USG, tomografia, ressonância, elastografia) ──
+Extraia TODAS as medidas numéricas como resultados rastreáveis.
+Use o formato de nome: "Órgão [Lado] - Medida" — exemplos:
+• Tireoide: "Tireoide Lobo D - Comprimento" / "Tireoide Lobo E - Comprimento" / "Tireoide - Volume Total" / "Istmo - Espessura"
+• Nódulo tireoidiano: "Nódulo Tireoide - Tamanho" (mm)
+• Útero: "Útero - Comprimento" / "Útero - Largura" / "Útero - Espessura AP"
+• Endométrio: "Endométrio - Espessura" (mm)
+• Ovários: "Ovário D - Volume" / "Ovário E - Volume" / "Ovário D - Comprimento" / "Folículos Ovário D - Contagem"
+• Rins: "Rim D - Comprimento" / "Rim E - Comprimento"
+• Fígado: "Fígado - Maior Dimensão"
+• Mama: "Nódulo Mama D - Tamanho" (mm)
+Inclua a unidade original (cm, mm, mL, etc.) e refLow/refHigh null (USG não tem referência numérica).
+
+CATEGORIA — atribua uma categoria a cada resultado:
+hemograma | leucograma | bioquimica | lipideos | glicemico | renal | hepatico | tireoide | hormonios | vitaminas | inflamatorios | urina | usg | outros
 
 ═══ TAREFA 2 — CONCLUSÃO DE LAUDOS DE IMAGEM ═══
 Se o texto for um laudo de imagem (ultrassom, vulvoscopia, mamografia, colposcopia, tomografia, ressonância, etc.), extraia o campo "conclusions" com o texto COMPLETO da seção "Conclusão", "Impressão Diagnóstica", ou "Achados" do laudo (como aparece no documento).

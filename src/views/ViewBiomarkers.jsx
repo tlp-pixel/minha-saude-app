@@ -18,6 +18,7 @@ export const CATEGORY_META = {
   inflamatorios: { label: 'Inflamatórios',        emoji: '🔥', order: 10 },
   bioquimica:    { label: 'Bioquímica',           emoji: '🧪', order: 11 },
   urina:         { label: 'Urina',                emoji: '💧', order: 12 },
+  usg:           { label: 'Imagem / USG',         emoji: '🔭', order: 13 },
   outros:        { label: 'Outros',               emoji: '📋', order: 99 },
 };
 

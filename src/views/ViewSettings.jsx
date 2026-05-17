@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import PageHead from '../components/PageHead';
-import { exportCSV, exportBackup, importBackup } from '../lib/storage';
+import { exportCSV, exportBackup, importBackup, clearAllData } from '../lib/storage';
 
 export default function ViewSettings() {
   const [dark, setDark] = useState(() => document.documentElement.getAttribute('data-dark') === 'true');
@@ -9,6 +9,8 @@ export default function ViewSettings() {
   const [showKey, setShowKey] = useState(false);
   const [keySaved, setKeySaved] = useState(false);
   const [importStatus, setImportStatus] = useState('');
+  const [clearConfirm, setClearConfirm] = useState('');
+  const [clearing, setClearing] = useState(false);
 
   function toggleDark() {
     const next = !dark;
@@ -123,6 +125,41 @@ export default function ViewSettings() {
               </div>
             </div>
             <button className="btn btn--ghost" onClick={handleExportCSV}>↓ Baixar CSV</button>
+          </div>
+        </div>
+
+        {/* Limpar dados */}
+        <div className="card" style={{ borderColor: 'var(--rust)', borderStyle: 'dashed' }}>
+          <div className="card-label" style={{ color: 'var(--rust)' }}>zona de perigo</div>
+          <p style={{ fontFamily: 'var(--serif)', fontSize: 14, color: 'var(--ink-2)', margin: '6px 0 14px', lineHeight: 1.5 }}>
+            Apaga todos os exames, biomarcadores e histórico do navegador. Irreversível — faça backup antes.
+          </p>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              value={clearConfirm}
+              onChange={e => setClearConfirm(e.target.value)}
+              placeholder='digite "limpar" para confirmar'
+              style={{ padding: '8px 12px', border: '1px solid var(--rust)', borderRadius: 'var(--r-md)', background: 'var(--bg-2)', fontSize: 13, fontFamily: 'var(--mono)', width: 240 }}
+            />
+            <button
+              disabled={clearConfirm !== 'limpar' || clearing}
+              onClick={async () => {
+                setClearing(true);
+                await clearAllData();
+                setClearConfirm('');
+                setClearing(false);
+                window.location.reload();
+              }}
+              style={{
+                padding: '8px 18px', borderRadius: 'var(--r-md)', fontSize: 13, fontFamily: 'var(--mono)',
+                background: clearConfirm === 'limpar' ? 'var(--rust)' : 'var(--bg-3)',
+                color: clearConfirm === 'limpar' ? 'var(--bg)' : 'var(--ink-3)',
+                border: 'none', cursor: clearConfirm === 'limpar' ? 'pointer' : 'default',
+                opacity: clearing ? 0.5 : 1,
+              }}
+            >
+              {clearing ? 'limpando…' : 'Limpar tudo'}
+            </button>
           </div>
         </div>
 

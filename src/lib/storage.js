@@ -154,6 +154,7 @@ const CATEGORY_RULES = [
   [/pcr|proteina c|vhs|interleucina|tnf/i, 'inflamatorios'],
   [/urina|densidade urin|ph urin|leuco.*urina|nitrito|proteina.*urina|glicose.*urina/i, 'urina'],
   [/sodio|potassio|cloro|calcio|fosforo|magnesio|bicarbonato/i, 'bioquimica'],
+  [/tireoide lobo|istmo|nodulo tireoide|utero|endometrio|ovario|foliculo|rim d|rim e|figado|nodulo mama|elastografia/i, 'usg'],
 ];
 
 export function inferCategory(name) {
@@ -289,4 +290,13 @@ export async function importBackup(json) {
   for (const [key, value] of Object.entries(all)) {
     await dbPut(key, value);
   }
+}
+
+export async function clearAllData() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE, 'readwrite').objectStore(STORE).clear();
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
 }
