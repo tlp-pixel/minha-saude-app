@@ -126,10 +126,8 @@ export function normalizeResults(claudeOutput) {
   })).filter(r => !isNaN(r.value));
 
   const detectedDate = date || new Date().toISOString().slice(0, 10);
-  const examId = detectedDate.replace(/-/g, '') + '-' + (lab || 'lab').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
 
   return {
-    examId,
     date: detectedDate,
     lab: lab || 'Laboratório',
     doctor: doctor || null,
@@ -151,6 +149,8 @@ export async function parsePDF(file, onProgress) {
   const parsed = normalizeResults(claudeOutput);
   parsed.pages = pages;
   parsed.fileName = file.name;
+  // Use filename as examId so two exams from the same lab/date never collide
+  parsed.examId = file.name.replace(/\.pdf$/i, '').toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
 
   onProgress?.('done', 100);
   return parsed;
