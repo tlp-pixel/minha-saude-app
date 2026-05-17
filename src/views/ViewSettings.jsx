@@ -1,20 +1,14 @@
 import { useState } from 'react';
 import PageHead from '../components/PageHead';
-import { saveConfig, testConnection, isConfigured, exportCSV } from '../lib/github';
+import { exportCSV, exportBackup, importBackup } from '../lib/storage';
 
 export default function ViewSettings() {
   const [dark, setDark] = useState(() => document.documentElement.getAttribute('data-dark') === 'true');
   const [density, setDensity] = useState(() => document.documentElement.getAttribute('data-density') || 'comfortable');
-
-  const [claudeKey, setClaudeKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
-  const [showClaudeKey, setShowClaudeKey] = useState(false);
-
-  const [ghToken, setGhToken] = useState(() => localStorage.getItem('github_token') || '');
-  const [ghOwner, setGhOwner] = useState(() => localStorage.getItem('github_owner') || 'tlp-pixel');
-  const [ghRepo, setGhRepo]   = useState(() => localStorage.getItem('github_repo')  || 'minha-saude-app');
-  const [showToken, setShowToken] = useState(false);
-  const [ghStatus, setGhStatus] = useState(isConfigured() ? 'saved' : 'idle');
-  const [ghError, setGhError] = useState('');
+  const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
+  const [showKey, setShowKey] = useState(false);
+  const [keySaved, setKeySaved] = useState(false);
+  const [importStatus, setImportStatus] = useState('');
 
   function toggleDark() {
     const next = !dark;
@@ -27,137 +21,108 @@ export default function ViewSettings() {
     document.documentElement.setAttribute('data-density', d);
   }
 
-  function saveClaudeKey() {
-    localStorage.setItem('gemini_api_key', claudeKey);
-  }
-
-  async function connectGitHub() {
-    setGhStatus('testing');
-    setGhError('');
-    saveConfig({ token: ghToken, owner: ghOwner, repo: ghRepo });
-    try {
-      await testConnection();
-      setGhStatus('ok');
-    } catch (e) {
-      setGhStatus('error');
-      setGhError(e.message);
-    }
+  function saveGeminiKey() {
+    localStorage.setItem('gemini_api_key', geminiKey);
+    setKeySaved(true);
+    setTimeout(() => setKeySaved(false), 2000);
   }
 
   async function handleExportCSV() {
-    try {
-      const csv = await exportCSV();
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'minha-saude-historico.csv';
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      alert('Conecte o GitHub primeiro para exportar os dados reais.');
-    }
+    const csv = await exportCSV();
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'minha-saude-historico.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
-  const ghStatusLabel = {
-    idle:    null,
-    saved:   { color: 'var(--sage)',    text: '✓ conectado' },
-    testing: { color: 'var(--terra-2)', text: 'verificando…' },
-    ok:      { color: 'var(--sage)',    text: '✓ conectado com sucesso' },
-    error:   { color: 'var(--rust)',    text: '✗ erro' },
-  }[ghStatus];
+  async function handleBackup() {
+    const json = await exportBackup();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `minha-saude-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleRestore(file) {
+    setImportStatus('restaurando…');
+    try {
+      const text = await file.text();
+      await importBackup(text);
+      setImportStatus('✓ restaurado com sucesso — recarregue a página');
+    } catch {
+      setImportStatus('erro ao restaurar — verifique o arquivo');
+    }
+  }
 
   return (
     <div className="fade-in" style={{ maxWidth: 720 }}>
       <PageHead
         eyebrow="configurações"
         title="<em>Preferências</em>"
-        sub="Como o app deve se comportar e onde seus dados ficam guardados."
+        sub="Chave de API, aparência e backup dos seus dados."
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-        {/* GitHub */}
-        <div className="card">
-          <div className="card-label">armazenamento · github</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
-
-            <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ flex: 1 }}>
-                <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginBottom: 4 }}>usuário</div>
-                <input
-                  value={ghOwner}
-                  onChange={e => setGhOwner(e.target.value)}
-                  placeholder="seu-usuario"
-                  style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--line-2)', borderRadius: 'var(--r-md)', background: 'var(--bg-2)', fontSize: 13, fontFamily: 'var(--mono)' }}
-                />
-              </div>
-              <div style={{ flex: 2 }}>
-                <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginBottom: 4 }}>repositório</div>
-                <input
-                  value={ghRepo}
-                  onChange={e => setGhRepo(e.target.value)}
-                  placeholder="minha-saude-dados"
-                  style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--line-2)', borderRadius: 'var(--r-md)', background: 'var(--bg-2)', fontSize: 13, fontFamily: 'var(--mono)' }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginBottom: 4 }}>personal access token</div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <input
-                  type={showToken ? 'text' : 'password'}
-                  value={ghToken}
-                  onChange={e => setGhToken(e.target.value)}
-                  placeholder="ghp_..."
-                  style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--line-2)', borderRadius: 'var(--r-md)', background: 'var(--bg-2)', fontSize: 13, fontFamily: 'var(--mono)' }}
-                />
-                <button className="btn btn--ghost" onClick={() => setShowToken(s => !s)} style={{ flexShrink: 0 }}>
-                  {showToken ? 'Ocultar' : 'Mostrar'}
-                </button>
-                <button
-                  className="btn btn--sage"
-                  onClick={connectGitHub}
-                  disabled={ghStatus === 'testing' || !ghToken || !ghOwner || !ghRepo}
-                  style={{ flexShrink: 0 }}
-                >
-                  {ghStatus === 'testing' ? 'Verificando…' : 'Conectar'}
-                </button>
-              </div>
-            </div>
-
-            {ghStatusLabel && (
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 12, color: ghStatusLabel.color }}>
-                {ghStatusLabel.text}
-                {ghStatus === 'error' && ghError && ` — ${ghError}`}
-              </div>
-            )}
-
-            <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', lineHeight: 1.6 }}>
-              PDFs e JSONs ficam em <b>{ghOwner}/{ghRepo}</b> (privado). O token fica só no seu navegador.
-            </div>
-          </div>
-        </div>
-
-        {/* Claude API */}
+        {/* Gemini API */}
         <div className="card">
           <div className="card-label">chave da gemini api</div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+          <p style={{ fontFamily: 'var(--serif)', fontSize: 14, color: 'var(--ink-2)', margin: '6px 0 12px', lineHeight: 1.5 }}>
+            Necessária para extrair biomarcadores dos PDFs e gerar narrativas nos dossiês. Gratuita em <b>aistudio.google.com</b>.
+          </p>
+          <div style={{ display: 'flex', gap: 10 }}>
             <input
-              type={showClaudeKey ? 'text' : 'password'}
-              value={claudeKey}
-              onChange={e => setClaudeKey(e.target.value)}
+              type={showKey ? 'text' : 'password'}
+              value={geminiKey}
+              onChange={e => setGeminiKey(e.target.value)}
               placeholder="AIza..."
               style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--line-2)', borderRadius: 'var(--r-md)', background: 'var(--bg-2)', fontSize: 13, fontFamily: 'var(--mono)' }}
             />
-            <button className="btn btn--ghost" onClick={() => setShowClaudeKey(s => !s)}>
-              {showClaudeKey ? 'Ocultar' : 'Mostrar'}
-            </button>
-            <button className="btn btn--sage" onClick={saveClaudeKey}>Salvar</button>
+            <button className="btn btn--ghost" onClick={() => setShowKey(s => !s)}>{showKey ? 'Ocultar' : 'Mostrar'}</button>
+            <button className="btn btn--sage" onClick={saveGeminiKey}>{keySaved ? '✓ Salvo' : 'Salvar'}</button>
           </div>
           <div className="subtle tiny" style={{ marginTop: 8, fontFamily: 'var(--mono)' }}>
-            Guardada só no seu navegador. Nunca enviada a nenhum servidor.
+            Guardada só no seu navegador. Nunca enviada a nenhum servidor nosso.
+          </div>
+        </div>
+
+        {/* Backup */}
+        <div className="card">
+          <div className="card-label">backup dos dados</div>
+          <p style={{ fontFamily: 'var(--serif)', fontSize: 14, color: 'var(--ink-2)', margin: '6px 0 14px', lineHeight: 1.5 }}>
+            Seus exames e biomarcadores ficam armazenados neste navegador. Faça backup regularmente e salve no Google Drive para não perder.
+          </p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button className="btn btn--sage" onClick={handleBackup}>↓ Baixar backup (.json)</button>
+            <label className="btn btn--ghost" style={{ cursor: 'pointer' }}>
+              ↑ Restaurar backup
+              <input type="file" accept=".json" hidden onChange={e => { const f = e.target.files?.[0]; if (f) handleRestore(f); e.target.value = ''; }} />
+            </label>
+          </div>
+          {importStatus && (
+            <div style={{ marginTop: 12, fontFamily: 'var(--mono)', fontSize: 12, color: importStatus.startsWith('✓') ? 'var(--sage)' : 'var(--rust)' }}>
+              {importStatus}
+            </div>
+          )}
+        </div>
+
+        {/* Exportar CSV */}
+        <div className="card">
+          <div className="card-label">exportar dados</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'var(--serif)', fontSize: 15 }}>Histórico completo em CSV</div>
+              <div className="subtle tiny" style={{ marginTop: 4 }}>
+                Uma linha por medição: data, biomarcador, valor, unidade, faixa de referência.
+              </div>
+            </div>
+            <button className="btn btn--ghost" onClick={handleExportCSV}>↓ Baixar CSV</button>
           </div>
         </div>
 
@@ -193,20 +158,6 @@ export default function ViewSettings() {
                 ))}
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Exportar */}
-        <div className="card">
-          <div className="card-label">exportar dados</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: 'var(--serif)', fontSize: 15 }}>Histórico completo em CSV</div>
-              <div className="subtle tiny" style={{ marginTop: 4 }}>
-                Uma linha por medição: data, exame, biomarcador, valor, unidade, faixa de referência.
-              </div>
-            </div>
-            <button className="btn btn--ghost" onClick={handleExportCSV}>↓ Baixar CSV</button>
           </div>
         </div>
 

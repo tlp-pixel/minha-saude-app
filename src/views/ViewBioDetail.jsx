@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import PageHead from '../components/PageHead';
 import { Bullet, LineChart } from '../components/charts';
-import { loadBiomarkers } from '../lib/github';
+import { loadBiomarkers } from '../lib/storage';
 import { statusOf } from '../lib/utils';
 
 export default function ViewBioDetail() {

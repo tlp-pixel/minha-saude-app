@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHead from '../components/PageHead';
-import { loadExamsIndex, loadBiomarkers, isConfigured } from '../lib/github';
+import { loadExamsIndex, loadBiomarkers, isConfigured } from '../lib/storage';
 import { statusOf } from '../lib/utils';
 
 export default function ViewHome() {

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import PageHead from '../components/PageHead';
 import { RefBar } from '../components/charts';
-import { loadParsedExam } from '../lib/github';
+import { loadParsedExam } from '../lib/storage';
 import { statusOf } from '../lib/utils';
 
 export default function ViewExamDetail() {

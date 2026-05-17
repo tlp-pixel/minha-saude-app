@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHead from '../components/PageHead';
 import { LineChart } from '../components/charts';
-import { loadBiomarkers, isConfigured } from '../lib/github';
+import { loadBiomarkers, isConfigured } from '../lib/storage';
 import { statusOf } from '../lib/utils';
 
 export default function ViewCompare() {

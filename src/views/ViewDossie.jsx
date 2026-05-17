@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import PageHead from '../components/PageHead';
 import { parseConsultationFile, generateNarrative } from '../lib/consultation';
-import { isConfigured, readJSON, writeJSON } from '../lib/github';
+import { isConfigured, readJSON, writeJSON } from '../lib/storage';
 
 const DOSSIES_KEY = 'dossies/index.json';
 const dossieFile = id => `dossies/${id}.json`;

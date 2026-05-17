@@ -11,7 +11,7 @@ import ViewInsights from './views/ViewInsights';
 import ViewUpload from './views/ViewUpload';
 import ViewDossie from './views/ViewDossie';
 import ViewSettings from './views/ViewSettings';
-import { loadExamsIndex, loadBiomarkers, isConfigured } from './lib/github';
+import { loadExamsIndex, loadBiomarkers, isConfigured } from './lib/storage';
 
 export default function App() {
   const [examCount, setExamCount] = useState(null);

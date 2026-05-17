@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHead from '../components/PageHead';
-import { loadExamsIndex, isConfigured } from '../lib/github';
+import { loadExamsIndex, isConfigured } from '../lib/storage';
 
 export default function ViewExams() {
   const navigate = useNavigate();

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHead from '../components/PageHead';
-import { loadBiomarkers, loadExamsIndex, isConfigured } from '../lib/github';
+import { loadBiomarkers, loadExamsIndex, isConfigured } from '../lib/storage';
 import { statusOf } from '../lib/utils';
 
 export default function ViewInsights() {
