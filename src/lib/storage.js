@@ -85,6 +85,18 @@ export async function loadParsedExam(examId) {
   return dbGet(`exames/parsed/${examId}.json`);
 }
 
+export async function loadAllNodules() {
+  const index = await loadExamsIndex();
+  const results = [];
+  for (const e of index) {
+    const parsed = await loadParsedExam(e.id);
+    if (parsed?.nodules?.length > 0) {
+      results.push({ examId: e.id, date: e.date, lab: e.lab, nodules: parsed.nodules });
+    }
+  }
+  return results;
+}
+
 export async function loadBiomarkers() {
   return (await dbGet('exames/biomarkers.json')) || {};
 }

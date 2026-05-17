@@ -18,8 +18,11 @@ export async function extractTextFromPDF(file) {
 
 const EXTRACTION_PROMPT = `Você receberá o texto de um exame laboratorial ou laudo de imagem brasileiro.
 
+⚠️ REGRA CRÍTICA — NUNCA INVENTE DADOS:
+Extraia SOMENTE valores que existam LITERALMENTE no texto. Se o documento for um laudo de imagem (USG, mamografia, tomografia) e não houver tabela de resultados laboratoriais, o campo "results" deve ser um array VAZIO []. Jamais fabrique ou infira valores que não estejam explicitamente no texto.
+
 ═══ TAREFA 1 — RESULTADOS NUMÉRICOS ═══
-Extraia ABSOLUTAMENTE TODOS os valores numéricos. Não pule nenhum.
+Extraia SOMENTE os valores numéricos que estão explicitamente presentes no texto como resultados de exame.
 
 ── EXAMES LABORATORIAIS ──
 VALORES DUPLOS (leucograma): Neutrófilos, Linfócitos, Monócitos, Eosinófilos, Basófilos, Bastões — quando aparecerem % E valor absoluto, extraia os DOIS. Acrescente " %" ou " Abs." ao nome.
@@ -42,7 +45,7 @@ Use o formato de nome: "Órgão [Lado] - Medida" — exemplos:
 • Ovários: "Ovário D - Volume" / "Ovário E - Volume" / "Ovário D - Comprimento" / "Folículos Ovário D - Contagem"
 • Rins: "Rim D - Comprimento" / "Rim E - Comprimento"
 • Fígado: "Fígado - Maior Dimensão"
-• Mama: "Nódulo Mama D - Tamanho" (mm)
+• Mama: ATENÇÃO — para laudos de mama (USG de mama, mamografia), NÃO extraia as medidas individuais dos nódulos em "results". Use a TAREFA 3 para isso.
 Inclua a unidade original (cm, mm, mL, etc.) e refLow/refHigh null (USG não tem referência numérica).
 
 CATEGORIA — atribua uma categoria a cada resultado:
@@ -52,15 +55,21 @@ hemograma | leucograma | bioquimica | lipideos | glicemico | renal | hepatico | 
 Se o texto for um laudo de imagem (ultrassom, vulvoscopia, mamografia, colposcopia, tomografia, ressonância, etc.), extraia o campo "conclusions" com o texto COMPLETO da seção "Conclusão", "Impressão Diagnóstica", ou "Achados" do laudo (como aparece no documento).
 
 ═══ TAREFA 3 — NÓDULOS DE MAMA ═══
-Se o laudo for de mama (mamografia ou ultrassom de mama), extraia um array "nodules". Para cada nódulo:
+Se o laudo for de mama (mamografia ou ultrassom de mama), extraia um array "nodules". Cada entrada representa UM nódulo ou cisto individual. Para cada um:
 - side: "direita" | "esquerda" | "bilateral"
-- location: texto do quadrante/localização exato como no laudo
-- size: número em mm (só o número, null se não informado)
-- birads: categoria BI-RADS se mencionada (null se não)
-- description: texto descritivo resumido do nódulo
+- location: localização exata como no laudo (ex: "às 3 horas, 3,0 cm do mamilo" / "QSL 10 hs" / "periareolar")
+- size: MAIOR dimensão em mm. Se o laudo informar ex. "1,1 x 0,5 x 1,0 cm", o maior valor é 1,1 cm = 11 mm. Converta cm→mm multiplicando por 10. Null se não informado.
+- birads: número da categoria BI-RADS se mencionada (ex: 3), null se não
+- description: morfologia resumida (ex: "oval, hipoecóico, margens circunscritas")
+
+ATENÇÃO para laudos em prosa: quando o laudo listar nódulos com frases como "- às 3 horas, medindo 1,1 x 0,5 x 1,0 cm" — cada traço/item da lista é um nódulo separado. Preste atenção à separação entre "À esquerda:" e "À direita:" para atribuir o lado correto.
 
 ═══ TAREFA 4 — MÉDICO SOLICITANTE ═══
-Extraia o campo "doctor" com o nome completo do médico solicitante/responsável (sem CRM, sem títulos como Dr./Dra., sem especialidade). Null se não encontrar.
+Extraia o campo "doctor" com o nome completo do médico SOLICITANTE — aquele que PEDIU/REQUISITOU o exame.
+ATENÇÃO: NÃO é o médico que laudou, assinou, executou ou é responsável técnico pelo exame.
+Campos que indicam o SOLICITANTE: "Médico Solicitante", "Solicitante", "Requisitante", "Pedido por", "Médico Pedinte".
+Campos que NÃO são o solicitante: "Médico Laudante", "Médico Executante", "Responsável Técnico", "Assinatura", "CRM do Laudo".
+Sem CRM, sem títulos como Dr./Dra., sem especialidade. Null se não encontrar o solicitante.
 
 IMPORTANTE — NÃO extraia como biomarcador:
 • CRM, RG, CPF, número de registro profissional
@@ -88,7 +97,7 @@ export async function extractDoctorFromText(text) {
   const apiKey = localStorage.getItem('gemini_api_key');
   if (!apiKey) return null;
   const snippet = text.slice(0, 3000);
-  const prompt = `Neste texto de exame laboratorial ou laudo, qual é o nome completo do médico solicitante ou responsável?\nResponda APENAS com o nome (sem CRM, sem "Dr."/"Dra.", sem especialidade).\nSe não encontrar, responda exatamente: null\n\nTexto:\n${snippet}`;
+  const prompt = `Neste texto de exame laboratorial ou laudo, qual é o nome completo do médico SOLICITANTE?\nO SOLICITANTE é quem PEDIU o exame (campo "Médico Solicitante", "Solicitante", "Requisitante").\nNÃO é o médico laudante, executante, responsável técnico ou quem assinou o laudo.\nResponda APENAS com o nome (sem CRM, sem "Dr."/"Dra.", sem especialidade).\nSe não encontrar o SOLICITANTE, responda exatamente: null\n\nTexto:\n${snippet}`;
   try {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
@@ -115,7 +124,7 @@ export async function extractBiomarkersWithGemini(text) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: EXTRACTION_PROMPT + truncatedText }] }],
-        generationConfig: { temperature: 0.1 },
+        generationConfig: { temperature: 0.1, responseMimeType: 'application/json' },
       }),
     }
   );
@@ -130,9 +139,32 @@ export async function extractBiomarkersWithGemini(text) {
   if (!raw) throw new Error('Gemini não retornou resposta.');
 
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Claude não retornou JSON válido.');
+  if (!jsonMatch) throw new Error('Gemini não retornou JSON válido.');
 
-  return JSON.parse(jsonMatch[0]);
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch {
+    // Gemini sometimes writes literal newlines/tabs inside JSON strings (invalid).
+    // Walk character-by-character to escape them only while inside a string value.
+    const src = jsonMatch[0];
+    let out = '';
+    let inStr = false;
+    let esc = false;
+    for (let i = 0; i < src.length; i++) {
+      const c = src[i];
+      if (esc) { out += c; esc = false; continue; }
+      if (c === '\\' && inStr) { out += c; esc = true; continue; }
+      if (c === '"') { inStr = !inStr; out += c; continue; }
+      if (inStr) {
+        if (c === '\n') { out += '\\n'; continue; }
+        if (c === '\r') { out += '\\r'; continue; }
+        if (c === '\t') { out += '\\t'; continue; }
+        if (c.charCodeAt(0) < 32) continue; // drop other control chars
+      }
+      out += c;
+    }
+    return JSON.parse(out);
+  }
 }
 
 export function normalizeResults(claudeOutput) {
@@ -158,7 +190,13 @@ export function normalizeResults(claudeOutput) {
     doctor: doctor || null,
     results: normalized,
     conclusions: conclusions || null,
-    nodules: Array.isArray(nodules) ? nodules : [],
+    nodules: Array.isArray(nodules) ? nodules.map(n => ({
+      ...n,
+      // Normalize size to mm (Gemini sometimes returns cm despite the prompt)
+      size: n.size != null
+        ? (n.size < 10 && String(n.size).includes('.') ? Math.round(n.size * 10) : n.size)
+        : null,
+    })) : [],
     extractedAt: new Date().toISOString(),
   };
 }

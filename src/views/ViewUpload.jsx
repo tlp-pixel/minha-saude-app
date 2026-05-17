@@ -117,6 +117,7 @@ export default function ViewUpload() {
         pages: result.pages || 1,
         status: 'parsed',
         resultsCount: result.results.length,
+        noduleCount: result.nodules?.length || 0,
         fileName: result.fileName || '',
       });
       await saveExamsIndex(index);

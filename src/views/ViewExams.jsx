@@ -98,6 +98,13 @@ export default function ViewExams() {
                   <div className="subtle tiny" style={{ marginTop: 3 }}>
                     {e.resultsCount ?? '—'} marcadores · {e.pages || 1} pág.
                   </div>
+                  {e.noduleCount > 0 && (
+                    <div style={{ marginTop: 5 }}>
+                      <span className="pill pill--terra" style={{ fontSize: 10 }}>
+                        {e.noduleCount} nódulo{e.noduleCount !== 1 ? 's' : ''} detectado{e.noduleCount !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  )}
                   {e.fileName && (
                     <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)', marginTop: 3 }}>
                       {e.fileName}
