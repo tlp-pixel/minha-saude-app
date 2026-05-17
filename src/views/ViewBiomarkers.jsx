@@ -22,6 +22,58 @@ export const CATEGORY_META = {
   outros:        { label: 'Outros',               emoji: '📋', order: 99 },
 };
 
+function ListView({ filtered, navigate }) {
+  return (
+    <div className="card" style={{ padding: '4px 22px', overflowX: 'auto' }}>
+      <table className="tbl" style={{ minWidth: 700 }}>
+        <thead>
+          <tr>
+            <th>Biomarcador</th>
+            <th>Categoria</th>
+            <th className="right">Último valor</th>
+            <th>Unidade</th>
+            <th>Referência</th>
+            <th className="right">Var.</th>
+            <th className="right">Status</th>
+            <th className="right">n</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filtered.map(b => {
+            const m = b.measurements || [];
+            const last = m.at(-1);
+            const v = last?.value;
+            const st = b.range ? statusOf(v, b.range) : 'none';
+            const prev = m.at(-2)?.value;
+            const delta = prev != null && v != null ? ((v - prev) / prev) * 100 : null;
+            return (
+              <tr key={b.id} onClick={() => navigate(`/biomarcadores/${b.id}`)} style={{ cursor: 'pointer' }}>
+                <td style={{ fontFamily: 'var(--serif)', fontSize: 15 }}>{b.name}</td>
+                <td className="subtle tiny" style={{ fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>{CATEGORY_META[b.category]?.label ?? b.category ?? '—'}</td>
+                <td className="right">
+                  <span className="num" style={{ fontSize: 16, color: st === 'bad' ? 'var(--rust)' : st === 'warn' ? 'var(--terra-2)' : 'var(--ink)' }}>{v ?? '—'}</span>
+                </td>
+                <td className="subtle tiny" style={{ fontFamily: 'var(--mono)' }}>{b.unit}</td>
+                <td className="subtle tiny" style={{ fontFamily: 'var(--mono)' }}>{b.range ? `${b.range[0]}–${b.range[1]}` : '—'}</td>
+                <td className="right">
+                  {delta != null && <span className={`trend-arrow ${delta > 1 ? 'up' : delta < -1 ? 'down' : 'flat'}`} style={{ fontSize: 11 }}>{delta > 0 ? '+' : ''}{delta.toFixed(1)}%</span>}
+                </td>
+                <td className="right">
+                  {st === 'ok'   && <span className="pill pill--sage" style={{ fontSize: 10 }}>✓ ok</span>}
+                  {st === 'warn' && <span className="pill pill--terra" style={{ fontSize: 10 }}>limite</span>}
+                  {st === 'bad'  && <span className="pill pill--rust" style={{ fontSize: 10 }}>fora</span>}
+                  {st === 'none' && <span className="pill" style={{ fontSize: 10 }}>—</span>}
+                </td>
+                <td className="right subtle tiny" style={{ fontFamily: 'var(--mono)' }}>{m.length}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function BioCard({ b, navigate }) {
   const measurements = b.measurements || [];
   const last = measurements.at(-1);
@@ -100,6 +152,7 @@ export default function ViewBiomarkers() {
   const [selectedCat, setSelectedCat] = useState(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
 
   useEffect(() => {
     if (!isConfigured()) { setLoading(false); return; }
@@ -201,6 +254,17 @@ export default function ViewBiomarkers() {
                 {outOfRange} fora da faixa
               </button>
             )}
+            {isBrowsing && (
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 4, padding: 4, background: 'var(--bg-2)', borderRadius: 999 }}>
+                {[{ id: 'grid', icon: '⊞' }, { id: 'list', icon: '≡' }].map(v => (
+                  <button key={v.id} onClick={() => setViewMode(v.id)} style={{
+                    padding: '5px 10px', borderRadius: 999, fontSize: 14,
+                    background: viewMode === v.id ? 'var(--bg)' : 'transparent',
+                    color: viewMode === v.id ? 'var(--ink)' : 'var(--ink-3)',
+                  }}>{v.icon}</button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Catalog: category cards */}
@@ -219,16 +283,20 @@ export default function ViewBiomarkers() {
             </div>
           )}
 
-          {/* Biomarker cards (when category selected or searching) */}
+          {/* Biomarker cards/list (when category selected or searching) */}
           {isBrowsing && (
-            <div className="grid grid-3">
-              {filtered.map(b => <BioCard key={b.id} b={b} navigate={navigate} />)}
-              {filtered.length === 0 && (
-                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px 0', color: 'var(--ink-3)', fontFamily: 'var(--serif)', fontSize: 16 }}>
-                  Nenhum biomarcador encontrado.
+            viewMode === 'list'
+              ? <ListView filtered={filtered} navigate={navigate} />
+              : (
+                <div className="grid grid-3">
+                  {filtered.map(b => <BioCard key={b.id} b={b} navigate={navigate} />)}
+                  {filtered.length === 0 && (
+                    <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px 0', color: 'var(--ink-3)', fontFamily: 'var(--serif)', fontSize: 16 }}>
+                      Nenhum biomarcador encontrado.
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              )
           )}
         </>
       )}
