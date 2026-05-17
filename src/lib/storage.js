@@ -167,7 +167,7 @@ export function inferCategory(name) {
 const BIOMARKER_ALIASES = [
   // Vitaminas
   { pattern: /vitamina.?b.?12|cianocobalamina|cobalamina/i,                       canonical: 'Vitamina B12',        category: 'vitaminas' },
-  { pattern: /vitamina.?d\b|25.?oh|25.?hidroxi|calcifediol|calciferol/i,          canonical: 'Vitamina D',          category: 'vitaminas' },
+  { pattern: /vitamina.?d(?:\b|3|\s*[-–])|25.?oh|25.?hidroxi|calcifediol|calciferol|colecalciferol/i, canonical: 'Vitamina D', category: 'vitaminas' },
   { pattern: /acido.?folico|ácido.?fólico|\bfolato\b/i,                           canonical: 'Ácido Fólico',        category: 'vitaminas' },
   { pattern: /\bferritina\b/i,                                                     canonical: 'Ferritina',           category: 'vitaminas' },
   { pattern: /ferro.?seric|ferro.?séric/i,                                         canonical: 'Ferro Sérico',        category: 'vitaminas' },
