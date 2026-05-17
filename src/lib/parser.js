@@ -19,7 +19,7 @@ export async function extractTextFromPDF(file) {
 const EXTRACTION_PROMPT = `Você receberá o texto de um exame laboratorial ou laudo de imagem brasileiro.
 
 ⚠️ REGRA CRÍTICA — NUNCA INVENTE DADOS:
-Extraia SOMENTE valores que existam LITERALMENTE no texto. Se o documento for um laudo de imagem (USG, mamografia, tomografia) e não houver tabela de resultados laboratoriais, o campo "results" deve ser um array VAZIO []. Jamais fabrique ou infira valores que não estejam explicitamente no texto.
+Extraia SOMENTE valores que existam LITERALMENTE no texto. Jamais fabrique ou infira valores que não estejam explicitamente escritos.
 
 ═══ TAREFA 1 — RESULTADOS NUMÉRICOS ═══
 Extraia SOMENTE os valores numéricos que estão explicitamente presentes no texto como resultados de exame.
@@ -45,7 +45,7 @@ Use o formato de nome: "Órgão [Lado] - Medida" — exemplos:
 • Ovários: "Ovário D - Volume" / "Ovário E - Volume" / "Ovário D - Comprimento" / "Folículos Ovário D - Contagem"
 • Rins: "Rim D - Comprimento" / "Rim E - Comprimento"
 • Fígado: "Fígado - Maior Dimensão"
-• Mama: ATENÇÃO — para laudos de mama (USG de mama, mamografia), NÃO extraia as medidas individuais dos nódulos em "results". Use a TAREFA 3 para isso.
+• Mama: "Nódulo Mama D [localização] - Dimensão 1" / "Cisto Mama E - Tamanho" (mm). Se o laudo for em prosa (sem tabela), deixe results vazio e use só a TAREFA 3.
 Inclua a unidade original (cm, mm, mL, etc.) e refLow/refHigh null (USG não tem referência numérica).
 
 CATEGORIA — atribua uma categoria a cada resultado:

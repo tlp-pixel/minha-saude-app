@@ -209,7 +209,7 @@ function SideNoduleCard({ side, nodules, bioNodules }) {
   );
 }
 
-function CategoryCard({ cat, meta, bios, navigate, onClick }) {
+function CategoryCard({ cat, meta, bios, navigate, onClick, noduleCount }) {
   const total = bios.length;
   const outOfRange = bios.filter(b => {
     const v = b.measurements?.at(-1)?.value;
@@ -222,8 +222,8 @@ function CategoryCard({ cat, meta, bios, navigate, onClick }) {
       <div style={{ fontSize: 28, marginBottom: 10 }}>{meta?.emoji ?? '📋'}</div>
       <div style={{ fontFamily: 'var(--serif)', fontSize: 18, fontStyle: 'italic', marginBottom: 6 }}>{meta?.label ?? cat}</div>
       <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginBottom: 10 }}>
-        {total} marcador{total !== 1 ? 'es' : ''}
-        {withData > 0 ? ` · ${withData} com histórico` : ''}
+        {total > 0 ? `${total} marcador${total !== 1 ? 'es' : ''}${withData > 0 ? ` · ${withData} com histórico` : ''}` : ''}
+        {noduleCount > 0 ? `${total > 0 ? ' · ' : ''}${noduleCount} nódulo${noduleCount !== 1 ? 's' : ''} detectado${noduleCount !== 1 ? 's' : ''}` : ''}
       </div>
       {outOfRange > 0 && (
         <span className="pill pill--rust">{outOfRange} fora da faixa</span>
@@ -256,20 +256,8 @@ export default function ViewBiomarkers() {
   }, []);
 
   useEffect(() => {
-    if (selectedCat === 'usg') {
-      loadAllNodules().then(data => {
-        console.log('[USG] noduleExams:', JSON.stringify(data, null, 2));
-        setNoduleExams(data);
-      }).catch(() => {});
-    }
-  }, [selectedCat]);
-
-  useEffect(() => {
-    if (selectedCat === 'usg' && Object.keys(biomarkers).length > 0) {
-      const usgBios = Object.values(biomarkers).filter(b => b.category === 'usg');
-      console.log('[USG] biomarker names:', usgBios.map(b => b.name));
-    }
-  }, [selectedCat, biomarkers]);
+    loadAllNodules().then(setNoduleExams).catch(() => {});
+  }, []);
 
   const bioList = Object.values(biomarkers)
     .filter(b => b.measurements?.length > 0)
@@ -282,6 +270,9 @@ export default function ViewBiomarkers() {
     if (!grouped[cat]) grouped[cat] = [];
     grouped[cat].push(b);
   });
+  // Include 'usg' even with 0 biomarkers when there are nodule exams
+  const totalNodules = noduleExams.reduce((a, e) => a + (e.nodules?.length || 0), 0);
+  if (totalNodules > 0 && !grouped['usg']) grouped['usg'] = [];
   const sortedCats = Object.keys(grouped).sort(
     (a, b) => (CATEGORY_META[a]?.order ?? 99) - (CATEGORY_META[b]?.order ?? 99)
   );
@@ -399,9 +390,10 @@ export default function ViewBiomarkers() {
                   key={cat}
                   cat={cat}
                   meta={CATEGORY_META[cat]}
-                  bios={grouped[cat]}
+                  bios={grouped[cat] || []}
                   navigate={navigate}
                   onClick={() => setSelectedCat(cat)}
+                  noduleCount={cat === 'usg' ? totalNodules : 0}
                 />
               ))}
             </div>
