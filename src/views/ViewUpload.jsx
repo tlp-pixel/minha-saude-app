@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHead from '../components/PageHead';
 import { parsePDF } from '../lib/parser';
-import { isConfigured, saveExamsIndex, saveParsedExam, loadExamsIndex } from '../lib/github';
+import { isConfigured, saveExamsIndex, saveParsedExam, loadExamsIndex, mergeParsedExamIntoBiomarkers } from '../lib/github';
 import { statusOf } from '../lib/utils';
 
 const SUPPORTED = [
@@ -153,6 +153,8 @@ export default function ViewUpload() {
           });
           await saveExamsIndex(index, null);
         }
+
+        await mergeParsedExamIntoBiomarkers(result);
       }
 
       setStage('done');

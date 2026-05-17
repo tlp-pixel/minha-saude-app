@@ -131,6 +131,37 @@ export async function saveConsultation(id, data, sha = null) {
   return writeJSON(`consultas/${id}.json`, data, `Salva consulta: ${id}`, sha);
 }
 
+export function normalizeBioId(name) {
+  return name.toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+export async function mergeParsedExamIntoBiomarkers(parsed) {
+  const existing = await readJSON('exames/biomarkers.json');
+  const biomarkers = existing?.data || {};
+  const sha = existing?.sha ?? null;
+
+  for (const r of parsed.results) {
+    if (r.value == null || isNaN(r.value)) continue;
+    const bioId = normalizeBioId(r.name);
+    if (!biomarkers[bioId]) {
+      biomarkers[bioId] = { id: bioId, name: r.name, unit: r.unit, range: r.range, measurements: [] };
+    }
+    const bio = biomarkers[bioId];
+    if (r.range && !bio.range) bio.range = r.range;
+    const exists = bio.measurements.some(m => m.examId === parsed.examId);
+    if (!exists) {
+      bio.measurements.push({ date: parsed.date, examId: parsed.examId, value: r.value });
+      bio.measurements.sort((a, b) => a.date.localeCompare(b.date));
+    }
+  }
+
+  await writeJSON('exames/biomarkers.json', biomarkers, `Merge exame: ${parsed.examId}`, sha);
+  return biomarkers;
+}
+
 export async function exportCSV() {
   const biomarkers = await loadBiomarkers();
   const rows = ['data,exame_id,biomarcador_id,biomarcador,valor,unidade,ref_min,ref_max'];

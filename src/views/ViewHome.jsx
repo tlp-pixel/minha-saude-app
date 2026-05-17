@@ -1,24 +1,25 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHead from '../components/PageHead';
-import TrendBadge from '../components/TrendBadge';
-import { Sparkline, Bullet } from '../components/charts';
-import { EXAMS, BIOMARKERS, CATEGORIES } from '../data/biomarkers';
-import { fmtDate, latestOf, prevOf, deltaPct, statusOf } from '../lib/utils';
+import { loadExamsIndex, loadBiomarkers, isConfigured } from '../lib/github';
+import { statusOf } from '../lib/utils';
 
 export default function ViewHome() {
   const navigate = useNavigate();
-  const recent = EXAMS.slice(0, 3);
+  const [exams, setExams] = useState([]);
+  const [biomarkers, setBiomarkers] = useState({});
+  const [loading, setLoading] = useState(true);
 
-  const watchlist = BIOMARKERS.filter(b => {
-    const last = latestOf(b);
-    return last < b.range[0] || last > b.range[1] || b.trend === 'watch';
-  }).slice(0, 4);
-
-  const total = BIOMARKERS.length;
-  const inRange = BIOMARKERS.filter(b => {
-    const last = latestOf(b);
-    return last != null && last >= b.range[0] && last <= b.range[1];
-  }).length;
+  useEffect(() => {
+    if (!isConfigured()) { setLoading(false); return; }
+    Promise.all([loadExamsIndex(), loadBiomarkers()])
+      .then(([e, b]) => {
+        setExams(e || []);
+        setBiomarkers(b || {});
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -27,138 +28,151 @@ export default function ViewHome() {
     return 'Boa noite';
   })();
 
-  const highlights = ['ldl', 'vd', 'hba1c', 'pcr']
-    .map(id => BIOMARKERS.find(b => b.id === id))
-    .filter(Boolean);
+  const bioList = Object.values(biomarkers);
+  const withRange = bioList.filter(b => b.range);
+  const inRange = withRange.filter(b => {
+    const last = b.measurements?.at(-1)?.value;
+    return last != null && statusOf(last, b.range) === 'ok';
+  }).length;
+  const outRange = withRange.filter(b => {
+    const last = b.measurements?.at(-1)?.value;
+    return last != null && statusOf(last, b.range) !== 'ok';
+  });
+
+  const lastExam = exams[0];
+  const recent = exams.slice(0, 3);
+  const configured = isConfigured();
 
   return (
     <div className="fade-in">
       <PageHead
         eyebrow={`hoje · ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}`}
         title={`${greeting},<br/><em>Thalita.</em>`}
-        sub={`Seu último exame foi em ${fmtDate(EXAMS[0]?.date)}. ${inRange} de ${total} biomarcadores estão dentro da faixa de referência.`}
+        sub={
+          !configured ? 'Configure o GitHub e a Gemini API em Configurações para começar.' :
+          loading ? 'Carregando seus dados…' :
+          exams.length === 0 ? 'Envie seu primeiro exame em PDF para começar.' :
+          `Último exame: ${lastExam?.lab} · ${lastExam?.date ? new Date(lastExam.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : ''}. ${bioList.length} biomarcadores acompanhados.`
+        }
         actions={<>
           <button className="btn btn--ghost" onClick={() => navigate('/exames')}>Ver exames</button>
           <button className="btn btn--sage" onClick={() => navigate('/upload')}>＋ Enviar PDF</button>
         </>}
       />
 
-      <div className="grid grid-3" style={{ marginBottom: 28 }}>
-        <div className="card">
-          <div className="card-label">cobertura</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span className="num" style={{ fontSize: 48, lineHeight: 1 }}>{inRange}</span>
-            <span className="subtle" style={{ fontFamily: 'var(--mono)', fontSize: 13 }}>/ {total}</span>
-          </div>
-          <div className="subtle tiny" style={{ marginTop: 6 }}>biomarcadores na faixa</div>
-          <div style={{ marginTop: 14, display: 'flex', gap: 3 }}>
-            {BIOMARKERS.map(b => {
-              const last = latestOf(b);
-              const ok = last != null && last >= b.range[0] && last <= b.range[1];
-              return <div key={b.id} style={{ flex: 1, height: 22, borderRadius: 2, background: ok ? 'var(--sage)' : 'var(--terra-2)', opacity: ok ? 0.5 : 0.85 }} title={b.name} />;
-            })}
-          </div>
+      {!configured && (
+        <div className="card" style={{ borderColor: 'var(--terra)', borderStyle: 'dashed', marginBottom: 28 }}>
+          <div className="card-label" style={{ color: 'var(--terra-2)' }}>para começar</div>
+          <p style={{ fontFamily: 'var(--serif)', fontSize: 15, margin: '6px 0 12px', color: 'var(--ink-2)' }}>
+            Configure sua chave da Gemini API e conecte o GitHub para salvar e analisar seus exames.
+          </p>
+          <button className="btn btn--sage" onClick={() => navigate('/config')}>Ir para Configurações →</button>
         </div>
+      )}
 
-        <div className="card">
-          <div className="card-label">exames enviados</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span className="num" style={{ fontSize: 48, lineHeight: 1 }}>{EXAMS.length}</span>
-            <span className="subtle" style={{ fontFamily: 'var(--mono)', fontSize: 13 }}>PDFs lidos</span>
+      {configured && !loading && exams.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '64px 0' }}>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 26, marginBottom: 12 }}>Tudo pronto!</div>
+          <div className="subtle" style={{ fontSize: 15, marginBottom: 28, maxWidth: 420, margin: '0 auto 28px' }}>
+            Envie seu primeiro PDF de exame e o Gemini vai extrair todos os biomarcadores automaticamente.
           </div>
-          <div className="subtle tiny" style={{ marginTop: 6 }}>último: {fmtDate(EXAMS[0]?.date)}</div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-            {EXAMS.slice().reverse().map(e => (
-              <div key={e.id} style={{ flex: 1, height: 22, borderRadius: 4, border: '1px solid var(--line)', background: 'var(--bg-2)', display: 'grid', placeItems: 'center', fontSize: 9.5, fontFamily: 'var(--mono)', color: 'var(--ink-3)' }}>
-                {new Date(e.date).toLocaleDateString('pt-BR', { month: 'short' })}
+          <button className="btn btn--sage" onClick={() => navigate('/upload')}>＋ Enviar primeiro exame</button>
+        </div>
+      )}
+
+      {!loading && exams.length > 0 && (
+        <>
+          <div className="grid grid-3" style={{ marginBottom: 28 }}>
+            <div className="card">
+              <div className="card-label">na faixa de referência</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span className="num" style={{ fontSize: 48, lineHeight: 1, color: 'var(--sage)' }}>{inRange}</span>
+                <span className="subtle" style={{ fontFamily: 'var(--mono)', fontSize: 13 }}>/ {withRange.length}</span>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="card" style={{ background: 'var(--ink)', color: 'var(--bg)', borderColor: 'transparent' }}>
-          <div className="card-label" style={{ color: 'var(--bg-3)' }}>panorama</div>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 22, lineHeight: 1.25, marginTop: 4 }}>
-            Trajetória <em style={{ color: 'var(--terra)' }}>positiva</em> nos últimos exames registrados.
-          </div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 14, flexWrap: 'wrap' }}>
-            <span className="pill" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--bg-2)', borderColor: 'rgba(255,255,255,0.12)' }}>↗ LDL -17%</span>
-            <span className="pill" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--bg-2)', borderColor: 'rgba(255,255,255,0.12)' }}>↗ Vit. D +105%</span>
-            <span className="pill" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--bg-2)', borderColor: 'rgba(255,255,255,0.12)' }}>↘ PCR -33%</span>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, margin: '8px 0 16px' }}>
-        <h2 style={{ fontFamily: 'var(--serif)', fontSize: 26, fontWeight: 400, margin: 0, letterSpacing: '-0.015em', lineHeight: 1.2 }}>
-          Em <em style={{ fontStyle: 'italic', color: 'var(--sage)' }}>destaque</em>
-        </h2>
-        <button className="subtle tiny" style={{ fontFamily: 'var(--mono)' }} onClick={() => navigate('/biomarcadores')}>todos →</button>
-      </div>
-      <div className="grid grid-4" style={{ marginBottom: 36 }}>
-        {highlights.map(b => (
-          <button key={b.id} className="card" onClick={() => navigate(`/biomarcadores/${b.id}`)} style={{ textAlign: 'left', cursor: 'pointer' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-              <span className="card-label" style={{ marginBottom: 0 }}>{CATEGORIES.find(c => c.id === b.cat)?.name}</span>
-              <TrendBadge trend={b.trend} />
+              <div className="subtle tiny" style={{ marginTop: 6 }}>biomarcadores com referência</div>
             </div>
-            <div style={{ fontFamily: 'var(--serif)', fontSize: 17, marginTop: 12, marginBottom: 4 }}>{b.name}</div>
-            <Bullet value={latestOf(b)} range={b.range} unit={b.unit} name="" />
-            <div className="subtle tiny" style={{ marginTop: 10, fontFamily: 'var(--mono)' }}>
-              vs {prevOf(b)} · {deltaPct(b) >= 0 ? '+' : ''}{deltaPct(b).toFixed(1)}%
+
+            <div className="card">
+              <div className="card-label">exames enviados</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span className="num" style={{ fontSize: 48, lineHeight: 1 }}>{exams.length}</span>
+                <span className="subtle" style={{ fontFamily: 'var(--mono)', fontSize: 13 }}>PDFs</span>
+              </div>
+              <div className="subtle tiny" style={{ marginTop: 6 }}>
+                último: {lastExam?.date ? new Date(lastExam.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+              </div>
             </div>
-          </button>
-        ))}
-      </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '1.4fr 1fr', gap: 28 }}>
-        <div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 14 }}>
-            <h2 style={{ fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 400, margin: 0, lineHeight: 1.2 }}>Últimos exames</h2>
-            <button className="subtle tiny" style={{ fontFamily: 'var(--mono)' }} onClick={() => navigate('/exames')}>histórico completo →</button>
+            <div className="card">
+              <div className="card-label">biomarcadores</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span className="num" style={{ fontSize: 48, lineHeight: 1 }}>{bioList.length}</span>
+                <span className="subtle" style={{ fontFamily: 'var(--mono)', fontSize: 13 }}>rastreados</span>
+              </div>
+              <div className="subtle tiny" style={{ marginTop: 6 }}>
+                {outRange.length > 0 ? `${outRange.length} fora da faixa` : 'todos na faixa ✓'}
+              </div>
+            </div>
           </div>
-          <div className="card" style={{ padding: '4px 22px' }}>
-            <table className="tbl">
-              <tbody>
-                {recent.map(e => (
-                  <tr key={e.id} className="clickable" onClick={() => navigate(`/exames/${e.id}`)}>
-                    <td style={{ width: 100, fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)' }}>
-                      {fmtDate(e.date, { day: '2-digit', month: 'short' })}<br/>
-                      <span style={{ fontSize: 10.5 }}>{new Date(e.date).getFullYear()}</span>
-                    </td>
-                    <td>
-                      <div style={{ fontFamily: 'var(--serif)', fontSize: 16 }}>{e.type}</div>
-                      <div className="subtle tiny" style={{ marginTop: 3 }}>{e.lab} · {e.pages} páginas</div>
-                    </td>
-                    <td className="right"><span className="pill pill--sage">✓ analisado</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
 
-        <div>
-          <h2 style={{ fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 400, margin: '0 0 14px' }}>Pontos de atenção</h2>
-          <div className="card card--soft" style={{ background: 'var(--terra-soft)' }}>
-            {watchlist.length === 0 ? (
-              <div className="subtle">Nada exigindo atenção no momento. ✓</div>
-            ) : watchlist.map((b, i) => (
-              <div key={b.id} style={{ padding: '14px 0', borderBottom: i < watchlist.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: 'var(--serif)', fontSize: 15, lineHeight: 1.25 }}>{b.name}</div>
-                  <div className="tiny subtle" style={{ marginTop: 6, fontFamily: 'var(--mono)' }}>
-                    ref. {b.range[0]}–{b.range[1]} · {b.trend === 'watch' ? 'observar' : b.trend}
-                  </div>
+          <div className="grid" style={{ gridTemplateColumns: '1.4fr 1fr', gap: 28 }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+                <h2 style={{ fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 400, margin: 0 }}>Últimos exames</h2>
+                <button className="subtle tiny" style={{ fontFamily: 'var(--mono)' }} onClick={() => navigate('/exames')}>histórico completo →</button>
+              </div>
+              <div className="card" style={{ padding: '4px 22px' }}>
+                <table className="tbl">
+                  <tbody>
+                    {recent.map(e => (
+                      <tr key={e.id} className="clickable" onClick={() => navigate(`/exames/${e.id}`)}>
+                        <td style={{ width: 100, fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)' }}>
+                          {e.date ? new Date(e.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '—'}<br/>
+                          <span style={{ fontSize: 10.5 }}>{e.date?.slice(0, 4)}</span>
+                        </td>
+                        <td>
+                          <div style={{ fontFamily: 'var(--serif)', fontSize: 16 }}>{e.lab || 'Laboratório'}</div>
+                          <div className="subtle tiny" style={{ marginTop: 3 }}>{e.resultsCount ?? '—'} marcadores · {e.pages || 1} pág.</div>
+                        </td>
+                        <td className="right"><span className="pill pill--sage">✓ analisado</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <h2 style={{ fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 400, margin: '0 0 14px' }}>Pontos de atenção</h2>
+              {outRange.length === 0 ? (
+                <div className="card card--soft">
+                  <div className="subtle">Nenhum marcador fora da faixa. ✓</div>
                 </div>
-                <span className="num" style={{ fontSize: 18, flexShrink: 0, lineHeight: 1.1 }}>
-                  {latestOf(b)}<span className="unit">{b.unit}</span>
-                </span>
-              </div>
-            ))}
+              ) : (
+                <div className="card card--soft" style={{ background: 'var(--terra-soft)' }}>
+                  {outRange.slice(0, 5).map((b, i) => {
+                    const last = b.measurements?.at(-1);
+                    const st = statusOf(last?.value, b.range);
+                    return (
+                      <div key={b.id} style={{ padding: '14px 0', borderBottom: i < Math.min(outRange.length, 5) - 1 ? '1px solid rgba(0,0,0,0.06)' : 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: 'var(--serif)', fontSize: 15 }}>{b.name}</div>
+                          <div className="tiny subtle" style={{ marginTop: 4, fontFamily: 'var(--mono)' }}>
+                            ref. {b.range[0]}–{b.range[1]} {b.unit}
+                          </div>
+                        </div>
+                        <span className="num" style={{ fontSize: 18, flexShrink: 0, lineHeight: 1.1, color: st === 'warn' ? 'var(--terra-2)' : 'var(--rust)' }}>
+                          {last?.value}<span className="unit" style={{ fontSize: 11 }}>{b.unit}</span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
