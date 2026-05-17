@@ -164,6 +164,67 @@ export function inferCategory(name) {
   return 'outros';
 }
 
+const BIOMARKER_ALIASES = [
+  { pattern: /vitamina.?b.?12|cianocobalamina|cobalamina/i,           canonical: 'Vitamina B12',         category: 'vitaminas' },
+  { pattern: /vitamina.?d|25.?oh.?vitam|25.?hidroxi|calcifediol/i,    canonical: 'Vitamina D',           category: 'vitaminas' },
+  { pattern: /\bglicose\b|\bglicemia\b/i,                             canonical: 'Glicose',              category: 'glicemico' },
+  { pattern: /hemoglobina.glicada|hba1c|hb.?a1c/i,                    canonical: 'Hemoglobina Glicada',  category: 'glicemico' },
+  { pattern: /\bpcr\b|proteina.c.reativa|proteína.c.reativa/i,        canonical: 'PCR',                  category: 'inflamatorios' },
+  { pattern: /\bureia\b|\buréia\b/i,                                   canonical: 'Ureia',                category: 'renal' },
+  { pattern: /\bferritina\b/i,                                         canonical: 'Ferritina',            category: 'vitaminas' },
+  { pattern: /ferro.seric|ferro.seríco/i,                             canonical: 'Ferro Sérico',         category: 'vitaminas' },
+  { pattern: /colesterol.total/i,                                      canonical: 'Colesterol Total',     category: 'lipideos' },
+  { pattern: /\bhdl\b|hdl.colesterol/i,                               canonical: 'HDL Colesterol',       category: 'lipideos' },
+  { pattern: /\bldl\b|ldl.colesterol/i,                               canonical: 'LDL Colesterol',       category: 'lipideos' },
+  { pattern: /\bvldl\b|vldl.colesterol/i,                             canonical: 'VLDL Colesterol',      category: 'lipideos' },
+  { pattern: /triglicerid/i,                                           canonical: 'Triglicerídeos',       category: 'lipideos' },
+  { pattern: /\btsh\b/i,                                               canonical: 'TSH',                  category: 'tireoide' },
+  { pattern: /t4.livre|tiroxina.livre/i,                              canonical: 'T4 Livre',             category: 'tireoide' },
+  { pattern: /t3.livre/i,                                              canonical: 'T3 Livre',             category: 'tireoide' },
+];
+
+export async function mergeBiomarkerAliases() {
+  const biomarkers = await loadBiomarkers();
+  let changed = false;
+
+  for (const { pattern, canonical, category } of BIOMARKER_ALIASES) {
+    const canonicalId = normalizeBioId(canonical);
+    const matchingIds = Object.keys(biomarkers).filter(id => pattern.test(biomarkers[id].name));
+    if (matchingIds.length === 0) continue;
+
+    // Ensure canonical entry exists
+    if (!biomarkers[canonicalId]) {
+      const src = biomarkers[matchingIds[0]];
+      biomarkers[canonicalId] = { id: canonicalId, name: canonical, unit: src.unit, range: src.range, category, measurements: [] };
+      changed = true;
+    } else if (biomarkers[canonicalId].name !== canonical) {
+      biomarkers[canonicalId].name = canonical;
+      changed = true;
+    }
+
+    const target = biomarkers[canonicalId];
+
+    for (const id of matchingIds) {
+      if (id === canonicalId) continue;
+      const src = biomarkers[id];
+      for (const m of src.measurements || []) {
+        if (!target.measurements.some(tm => tm.examId === m.examId)) {
+          target.measurements.push(m);
+          changed = true;
+        }
+      }
+      if (!target.range && src.range) { target.range = src.range; changed = true; }
+      if ((!target.category || target.category === 'outros') && src.category) { target.category = src.category; changed = true; }
+      delete biomarkers[id];
+      changed = true;
+    }
+
+    if (changed) target.measurements.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  if (changed) await saveBiomarkers(biomarkers);
+}
+
 export async function migrateBiomarkerCategories() {
   const biomarkers = await loadBiomarkers();
   let changed = false;

@@ -10,6 +10,7 @@ import ViewCompare from './views/ViewCompare';
 import ViewInsights from './views/ViewInsights';
 import ViewUpload from './views/ViewUpload';
 import ViewDossie from './views/ViewDossie';
+import ViewMedicos from './views/ViewMedicos';
 import ViewSettings from './views/ViewSettings';
 import { loadExamsIndex, loadBiomarkers, isConfigured } from './lib/storage';
 
@@ -40,6 +41,8 @@ export default function App() {
           <Route path="/comparar"            element={<ViewCompare />} />
           <Route path="/insights"            element={<ViewInsights />} />
           <Route path="/upload"              element={<ViewUpload />} />
+          <Route path="/medicos"             element={<ViewMedicos />} />
+          <Route path="/consultas"           element={<ViewDossie />} />
           <Route path="/dossie"              element={<ViewDossie />} />
           <Route path="/config"              element={<ViewSettings />} />
         </Routes>

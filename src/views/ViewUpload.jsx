@@ -109,6 +109,7 @@ export default function ViewUpload() {
         id: result.examId,
         date: result.date,
         lab: result.lab,
+        doctor: result.doctor || null,
         pages: result.pages || 1,
         status: 'parsed',
         resultsCount: result.results.length,

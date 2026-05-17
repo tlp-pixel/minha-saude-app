@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHead from '../components/PageHead';
 import { Sparkline } from '../components/charts';
-import { loadBiomarkers, isConfigured, migrateBiomarkerCategories } from '../lib/storage';
+import { loadBiomarkers, isConfigured, migrateBiomarkerCategories, mergeBiomarkerAliases } from '../lib/storage';
 import { statusOf } from '../lib/utils';
 
 const CATEGORY_META = {
@@ -76,7 +76,7 @@ export default function ViewBiomarkers() {
 
   useEffect(() => {
     if (!isConfigured()) { setLoading(false); return; }
-    migrateBiomarkerCategories().catch(() => {}).finally(() => {
+    mergeBiomarkerAliases().catch(() => {}).then(() => migrateBiomarkerCategories().catch(() => {})).finally(() => {
       loadBiomarkers().then(data => {
         setBiomarkers(data || {});
         setLoading(false);

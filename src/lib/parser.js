@@ -52,11 +52,21 @@ Se o laudo for de mama (mamografia ou ultrassom de mama), extraia um array "nodu
 - birads: categoria BI-RADS se mencionada (null se não)
 - description: texto descritivo resumido do nódulo
 
+═══ TAREFA 4 — MÉDICO SOLICITANTE ═══
+Extraia o campo "doctor" com o nome completo do médico solicitante/responsável (sem CRM, sem títulos como Dr./Dra., sem especialidade). Null se não encontrar.
+
+IMPORTANTE — NÃO extraia como biomarcador:
+• CRM, RG, CPF, número de registro profissional
+• Números de pedido, protocolo, código de barras, número de laudo
+• Datas, endereços, nomes de paciente, convênio, número de carteirinha
+• Qualquer campo que não seja um resultado laboratorial ou medição clínica
+
 Formato de resposta — SOMENTE JSON válido, nada mais:
 {
   "lab": "nome do laboratório ou clínica",
   "date": "YYYY-MM-DD",
   "patientName": "nome se encontrar, null se não",
+  "doctor": "nome do médico solicitante sem CRM, null se não encontrar",
   "conclusions": "texto completo da conclusão/impressão do laudo de imagem, null se não aplicável",
   "nodules": [],
   "results": [
@@ -101,7 +111,7 @@ export async function extractBiomarkersWithGemini(text) {
 }
 
 export function normalizeResults(claudeOutput) {
-  const { lab, date, results, conclusions, nodules } = claudeOutput;
+  const { lab, date, results, conclusions, nodules, doctor } = claudeOutput;
 
   const normalized = results.map((r, i) => ({
     id: `r${i}`,
@@ -122,6 +132,7 @@ export function normalizeResults(claudeOutput) {
     examId,
     date: detectedDate,
     lab: lab || 'Laboratório',
+    doctor: doctor || null,
     results: normalized,
     conclusions: conclusions || null,
     nodules: Array.isArray(nodules) ? nodules : [],

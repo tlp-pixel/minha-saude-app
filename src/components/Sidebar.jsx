@@ -1,12 +1,13 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 
 const NAV_ITEMS = [
-  { to: '/',            label: 'Início',        countKey: null },
-  { to: '/exames',      label: 'Exames',        countKey: 'exams' },
-  { to: '/comparar',    label: 'Comparar',      countKey: null },
-  { to: '/biomarcadores', label: 'Biomarcadores', countKey: 'biomarkers' },
-  { to: '/insights',    label: 'Insights',      countKey: null },
-  { to: '/dossie',      label: 'Dossiês',       countKey: null },
+  { to: '/',              label: 'Início',          countKey: null },
+  { to: '/exames',        label: 'Exames',          countKey: 'exams' },
+  { to: '/biomarcadores', label: 'Biomarcadores',   countKey: 'biomarkers' },
+  { to: '/comparar',      label: 'Comparar',        countKey: null },
+  { to: '/insights',      label: 'Insights',        countKey: null },
+  { to: '/medicos',       label: 'Médicos',         countKey: null },
+  { to: '/consultas',     label: 'Consultas',       countKey: null },
 ];
 
 const ACTION_ITEMS = [
