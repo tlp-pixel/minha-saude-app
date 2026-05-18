@@ -108,20 +108,24 @@ export default function ViewUpload() {
     await saveParsedExam(result.examId, result);
 
     const index = (await loadExamsIndex()) || [];
-    if (!index.find(e => e.id === result.examId)) {
-      index.unshift({
-        id: result.examId,
-        date: result.date,
-        lab: result.lab,
-        doctor: result.doctor || null,
-        pages: result.pages || 1,
-        status: 'parsed',
-        resultsCount: result.results.length,
-        noduleCount: result.nodules?.length || 0,
-        fileName: result.fileName || '',
-      });
-      await saveExamsIndex(index);
+    const entry = {
+      id: result.examId,
+      date: result.date,
+      lab: result.lab,
+      doctor: result.doctor || null,
+      pages: result.pages || 1,
+      status: 'parsed',
+      resultsCount: result.results.length,
+      noduleCount: result.nodules?.length || 0,
+      fileName: result.fileName || '',
+    };
+    const existingIdx = index.findIndex(e => e.id === result.examId);
+    if (existingIdx >= 0) {
+      index[existingIdx] = entry;
+    } else {
+      index.unshift(entry);
     }
+    await saveExamsIndex(index);
 
     await mergeParsedExamIntoBiomarkers(result);
     return result;
@@ -141,14 +145,16 @@ export default function ViewUpload() {
     const results = [];
 
     const existingIndex = (await loadExamsIndex()) || [];
-    const existingFileNames = new Set(existingIndex.map(e => e.fileName).filter(Boolean));
 
     for (let i = 0; i < pdfs.length; i++) {
       const file = pdfs[i];
       setCurrent({ name: file.name, index: i + 1, total: pdfs.length });
 
-      if (existingFileNames.has(file.name)) {
-        // File already in system — just extract the doctor name (cheap)
+      const existingEntry = existingIndex.find(e => e.fileName === file.name);
+      const hasValidData = existingEntry && (existingEntry.resultsCount > 0 || existingEntry.noduleCount > 0);
+
+      if (existingEntry && hasValidData) {
+        // Already processed successfully — just update doctor if missing
         try {
           setStage('extracting');
           const { text } = await extractTextFromPDF(file);
