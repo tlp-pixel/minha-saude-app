@@ -268,13 +268,8 @@ function TransvaginalSummary({ bios }) {
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 14 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <TVSection title="Útero" rows={[
-            { label: 'comprimento',  bio: f('uteroComp') },
-            { label: 'largura',      bio: f('uteroLarg') },
-            { label: 'espessura AP', bio: f('uteroEsp')  },
-            { label: 'volume',       bio: f('uteroVol'), refMax: 90, refLabel: 'acima do normal' },
-          ]} />
-          <TVSection title="Endométrio" rows={[
-            { label: 'espessura', bio: f('endo') },
+            { label: 'volume',    bio: f('uteroVol'), refMax: 90, refLabel: 'acima do normal' },
+            { label: 'endométrio', bio: f('endo') },
           ]} />
           {(f('uteroNod') || f('uteroCisto')) && (
             <TVSection title="Achados uterinos" rows={[
@@ -284,18 +279,12 @@ function TransvaginalSummary({ bios }) {
           )}
         </div>
         <TVSection title="Ovário Direito" rows={[
-          { label: 'comprimento',       bio: f('odComp') },
-          { label: 'largura',           bio: f('odLarg') },
-          { label: 'espessura AP',      bio: f('odEsp')  },
-          { label: 'volume',            bio: f('odVol'), refMax: 10, refLabel: 'acima do normal' },
-          { label: 'folículo maior',    bio: f('odFol')  },
+          { label: 'volume',         bio: f('odVol'), refMax: 10, refLabel: 'acima do normal' },
+          { label: 'folículo maior', bio: f('odFol') },
         ]} />
         <TVSection title="Ovário Esquerdo" rows={[
-          { label: 'comprimento',       bio: f('oeComp') },
-          { label: 'largura',           bio: f('oeLarg') },
-          { label: 'espessura AP',      bio: f('oeEsp')  },
-          { label: 'volume',            bio: f('oeVol'), refMax: 10, refLabel: 'acima do normal' },
-          { label: 'folículo maior',    bio: f('oeFol')  },
+          { label: 'volume',         bio: f('oeVol'), refMax: 10, refLabel: 'acima do normal' },
+          { label: 'folículo maior', bio: f('oeFol') },
         ]} />
       </div>
     </div>
