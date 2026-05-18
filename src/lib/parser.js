@@ -16,6 +16,15 @@ export async function extractTextFromPDF(file) {
   return { text: pages.join('\n\n'), pages: pdf.numPages };
 }
 
+async function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 const EXTRACTION_PROMPT = `Você receberá o texto de um exame laboratorial ou laudo de imagem brasileiro.
 
 ⚠️ REGRA CRÍTICA — NUNCA INVENTE DADOS:
@@ -88,8 +97,6 @@ Formato de resposta — SOMENTE JSON válido, nada mais:
     { "name": "...", "value": 0, "unit": "...", "refLow": 0, "refHigh": 0, "status": "normal", "category": "bioquimica", "rawText": "..." }
   ]
 }
-
-Texto do exame:
 `;
 
 export async function extractDoctorFromText(text) {
@@ -110,11 +117,11 @@ export async function extractDoctorFromText(text) {
   } catch { return null; }
 }
 
-export async function extractBiomarkersWithGemini(text) {
+export async function extractBiomarkersWithGemini(file) {
   const apiKey = localStorage.getItem('gemini_api_key');
   if (!apiKey) throw new Error('Chave da Gemini API não configurada. Vá em Configurações.');
 
-  const truncatedText = text.slice(0, 12000);
+  const base64 = await fileToBase64(file);
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
@@ -122,7 +129,10 @@ export async function extractBiomarkersWithGemini(text) {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: EXTRACTION_PROMPT + truncatedText }] }],
+        contents: [{ parts: [
+          { text: EXTRACTION_PROMPT },
+          { inlineData: { mimeType: 'application/pdf', data: base64 } },
+        ]}],
         generationConfig: { temperature: 0.1, responseMimeType: 'application/json' },
       }),
     }
@@ -202,10 +212,10 @@ export function normalizeResults(claudeOutput) {
 
 export async function parsePDF(file, onProgress) {
   onProgress?.('reading', 10);
-  const { text, pages } = await extractTextFromPDF(file);
+  const { pages } = await extractTextFromPDF(file);
 
   onProgress?.('extracting', 40);
-  const claudeOutput = await extractBiomarkersWithGemini(text);
+  const claudeOutput = await extractBiomarkersWithGemini(file);
 
   onProgress?.('normalizing', 80);
   const parsed = normalizeResults(claudeOutput);
