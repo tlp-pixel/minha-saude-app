@@ -181,7 +181,6 @@ export default function ViewUpload() {
       try {
         const parsed = await processFile(file);
         results.push({ ok: true, fileName: file.name, parsed });
-        existingFileNames.add(file.name);
       } catch (e) {
         results.push({ ok: false, fileName: file.name, error: e.message });
       }
