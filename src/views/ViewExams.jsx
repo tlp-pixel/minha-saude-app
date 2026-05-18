@@ -93,18 +93,16 @@ export default function ViewExams() {
                 }}>{f.label}</button>
               ))}
             </div>
-            {typeFilters.length > 2 && (
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {typeFilters.map(f => (
-                  <button key={f.id} onClick={() => setTypeFilter(f.id)} style={{
-                    padding: '5px 12px', borderRadius: 999, fontSize: 12, fontFamily: 'var(--mono)',
-                    background: typeFilter === f.id ? 'var(--ink)' : 'var(--bg-2)',
-                    color: typeFilter === f.id ? 'var(--bg)' : 'var(--ink-3)',
-                    border: '1px solid ' + (typeFilter === f.id ? 'var(--ink)' : 'var(--line-2)'),
-                  }}>{f.label}</button>
-                ))}
-              </div>
-            )}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {typeFilters.map(f => (
+                <button key={f.id} onClick={() => setTypeFilter(f.id)} style={{
+                  padding: '5px 12px', borderRadius: 999, fontSize: 12, fontFamily: 'var(--mono)',
+                  background: typeFilter === f.id ? 'var(--ink)' : 'var(--bg-2)',
+                  color: typeFilter === f.id ? 'var(--bg)' : 'var(--ink-3)',
+                  border: '1px solid ' + (typeFilter === f.id ? 'var(--ink)' : 'var(--line-2)'),
+                }}>{f.label}</button>
+              ))}
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
