@@ -85,6 +85,16 @@ export async function loadParsedExam(examId) {
   return dbGet(`exames/parsed/${examId}.json`);
 }
 
+export async function loadExamsByType(type) {
+  const index = await loadExamsIndex();
+  const results = [];
+  for (const e of index.filter(e => inferExamType(e) === type)) {
+    const parsed = await loadParsedExam(e.id);
+    if (parsed) results.push({ examId: e.id, date: e.date, lab: e.lab, conclusions: parsed.conclusions || null });
+  }
+  return results.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export async function loadAllNodules() {
   const index = await loadExamsIndex();
   const results = [];
