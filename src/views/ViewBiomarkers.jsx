@@ -208,133 +208,96 @@ export function isTransvaginalBio(b) {
 }
 
 function tvFind(bios, key) { return bios.find(b => TV[key].test(b.name)); }
-function tvVal(bios, key)  { return tvFind(bios, key)?.measurements?.at(-1)?.value ?? null; }
-function tvVals(bios, key) { return tvFind(bios, key)?.measurements?.map(m => m.value) ?? []; }
 
-function OvarioCard({ label, compKey, largKey, espKey, volKey, folKey, bios }) {
-  const v = k => tvVal(bios, k);
-  const vs = k => tvVals(bios, k);
-  const volume = v(volKey);
-  const volAlto = volume != null && volume > 10;
-  const dims = [v(compKey), v(largKey), v(espKey)].filter(x => x != null);
-  if (!dims.length && volume == null) return null;
+function TVRow({ label, bio, refMax, refLabel }) {
+  const [open, setOpen] = useState(false);
+  const ms = bio?.measurements || [];
+  const last = ms.at(-1);
+  if (!last) return null;
+  const alto = refMax != null && last.value > refMax;
   return (
-    <div className="card">
-      <div className="card-label">{label}</div>
-      {dims.length > 0 && (
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 14, marginTop: 8, letterSpacing: '-0.01em' }}>
-          {dims.join(' × ')} <span className="subtle" style={{ fontSize: 11 }}>cm</span>
-        </div>
-      )}
-      {volume != null && (
-        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span className="num" style={{ fontSize: 22 }}>{volume}</span>
-          <span className="subtle" style={{ fontFamily: 'var(--mono)', fontSize: 10 }}>cm³</span>
-          <span className={`pill ${volAlto ? 'pill--terra' : 'pill--sage'}`} style={{ fontSize: 9 }}>
-            {volAlto ? 'acima do normal' : 'normal'}
-          </span>
-        </div>
-      )}
-      {v(folKey) != null && (
-        <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginTop: 6 }}>
-          folículo maior: {v(folKey)} cm
-        </div>
-      )}
-      {vs(volKey).length > 1 && (
-        <div style={{ marginTop: 10 }}>
-          <Sparkline values={vs(volKey)} width={160} height={28} />
+    <div style={{ borderBottom: '1px solid var(--line)', paddingBottom: 6, marginBottom: 6 }}>
+      <button
+        onClick={() => ms.length > 1 ? setOpen(v => !v) : null}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', background: 'none', border: 'none', padding: '4px 0', cursor: ms.length > 1 ? 'pointer' : 'default' }}
+      >
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>{label}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="num" style={{ fontSize: 17 }}>{last.value}</span>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)' }}>{bio.unit}</span>
+          {alto && <span className="pill pill--terra" style={{ fontSize: 9 }}>↑ {refLabel}</span>}
+          {ms.length > 1 && <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>{open ? '−' : '+'}</span>}
+        </span>
+      </button>
+      {open && (
+        <div style={{ paddingLeft: 10, paddingBottom: 2 }}>
+          {[...ms].reverse().map((m, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0 3px 8px', borderLeft: '2px solid var(--line)' }}>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>
+                {new Date(m.date + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })}
+              </span>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{m.value} {bio.unit}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-function TransvaginalSummary({ bios, tvExams }) {
-  const v  = k => tvVal(bios, k);
-  const vs = k => tvVals(bios, k);
-  const hasData = v('uteroComp') != null || v('odVol') != null || v('oeVol') != null;
-  if (!hasData) return null;
+function TVSection({ title, rows }) {
+  if (!rows.some(r => r.bio)) return null;
+  return (
+    <div className="card">
+      <div className="card-label" style={{ marginBottom: 10 }}>{title}</div>
+      {rows.map(({ label, bio, refMax, refLabel }) =>
+        bio ? <TVRow key={label} label={label} bio={bio} refMax={refMax} refLabel={refLabel} /> : null
+      )}
+    </div>
+  );
+}
 
-  const uteroDims = [v('uteroComp'), v('uteroLarg'), v('uteroEsp')].filter(x => x != null);
+function TransvaginalSummary({ bios }) {
+  const f = key => tvFind(bios, key);
+  const hasData = f('uteroComp') || f('odVol') || f('oeVol');
+  if (!hasData) return null;
 
   return (
     <div style={{ gridColumn: '1/-1', marginBottom: 8 }}>
       <div className="card-label" style={{ marginBottom: 12 }}>ultrassom transvaginal</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
-
-        {/* Útero + Endométrio */}
-        <div className="card">
-          <div className="card-label">Útero</div>
-          {uteroDims.length > 0 && (
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 14, marginTop: 8, letterSpacing: '-0.01em' }}>
-              {uteroDims.join(' × ')} <span className="subtle" style={{ fontSize: 11 }}>cm</span>
-            </div>
-          )}
-          {v('uteroVol') != null && (
-            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span className="num" style={{ fontSize: 22 }}>{v('uteroVol')}</span>
-              <span className="subtle" style={{ fontFamily: 'var(--mono)', fontSize: 10 }}>cm³</span>
-              <span className={`pill ${v('uteroVol') > 90 ? 'pill--terra' : 'pill--sage'}`} style={{ fontSize: 9 }}>
-                {v('uteroVol') > 90 ? 'acima do normal' : 'normal'}
-              </span>
-            </div>
-          )}
-          {v('endo') != null && (
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)' }}>
-              <div className="card-label">Endométrio</div>
-              <div style={{ marginTop: 6, display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span className="num" style={{ fontSize: 22 }}>{v('endo')}</span>
-                <span className="subtle" style={{ fontFamily: 'var(--mono)', fontSize: 10 }}>cm</span>
-              </div>
-              {vs('endo').length > 1 && <Sparkline values={vs('endo')} width={200} height={28} style={{ marginTop: 8 }} />}
-            </div>
-          )}
-          {(v('uteroNod') != null || v('uteroCisto') != null) && (
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)' }}>
-              <div className="card-label">Achados uterinos</div>
-              {v('uteroNod') != null && (
-                <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginTop: 4 }}>
-                  nódulo: {v('uteroNod')} cm
-                </div>
-              )}
-              {v('uteroCisto') != null && (
-                <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginTop: 2 }}>
-                  cisto: {v('uteroCisto')} cm
-                </div>
-              )}
-            </div>
-          )}
-          {vs('uteroVol').length > 1 && (
-            <div style={{ marginTop: 12 }}>
-              <Sparkline values={vs('uteroVol')} width={220} height={28} />
-            </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <TVSection title="Útero" rows={[
+            { label: 'comprimento',  bio: f('uteroComp') },
+            { label: 'largura',      bio: f('uteroLarg') },
+            { label: 'espessura AP', bio: f('uteroEsp')  },
+            { label: 'volume',       bio: f('uteroVol'), refMax: 90, refLabel: 'acima do normal' },
+          ]} />
+          <TVSection title="Endométrio" rows={[
+            { label: 'espessura', bio: f('endo') },
+          ]} />
+          {(f('uteroNod') || f('uteroCisto')) && (
+            <TVSection title="Achados uterinos" rows={[
+              { label: 'nódulo', bio: f('uteroNod') },
+              { label: 'cisto',  bio: f('uteroCisto') },
+            ]} />
           )}
         </div>
-
-        <OvarioCard label="Ovário Direito"
-          compKey="odComp" largKey="odLarg" espKey="odEsp" volKey="odVol" folKey="odFol"
-          bios={bios} />
-        <OvarioCard label="Ovário Esquerdo"
-          compKey="oeComp" largKey="oeLarg" espKey="oeEsp" volKey="oeVol" folKey="oeFol"
-          bios={bios} />
+        <TVSection title="Ovário Direito" rows={[
+          { label: 'comprimento',       bio: f('odComp') },
+          { label: 'largura',           bio: f('odLarg') },
+          { label: 'espessura AP',      bio: f('odEsp')  },
+          { label: 'volume',            bio: f('odVol'), refMax: 10, refLabel: 'acima do normal' },
+          { label: 'folículo maior',    bio: f('odFol')  },
+        ]} />
+        <TVSection title="Ovário Esquerdo" rows={[
+          { label: 'comprimento',       bio: f('oeComp') },
+          { label: 'largura',           bio: f('oeLarg') },
+          { label: 'espessura AP',      bio: f('oeEsp')  },
+          { label: 'volume',            bio: f('oeVol'), refMax: 10, refLabel: 'acima do normal' },
+          { label: 'folículo maior',    bio: f('oeFol')  },
+        ]} />
       </div>
-
-      {tvExams?.some(e => e.conclusions) && (
-        <div style={{ marginTop: 4 }}>
-          <div className="card-label" style={{ marginBottom: 10 }}>conclusões dos laudos</div>
-          {tvExams.filter(e => e.conclusions).map(e => (
-            <div key={e.examId} className="card" style={{ marginBottom: 10 }}>
-              <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginBottom: 8 }}>
-                {new Date(e.date + 'T12:00:00').toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' })}
-                {e.lab ? ` · ${e.lab}` : ''}
-              </div>
-              <p style={{ fontFamily: 'var(--serif)', fontSize: 14, lineHeight: 1.65, margin: 0, color: 'var(--ink-2)' }}>
-                {e.conclusions}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -540,6 +503,7 @@ export default function ViewBiomarkers() {
   const [noduleExams, setNoduleExams] = useState([]);
   const [showMatrix, setShowMatrix] = useState(false);
   const [tvExams, setTvExams] = useState([]);
+  const [examTypeFilter, setExamTypeFilter] = useState('all'); // 'all' | 'lab' | 'usg'
 
   useEffect(() => {
     if (!isConfigured()) { setLoading(false); return; }
@@ -570,7 +534,13 @@ export default function ViewBiomarkers() {
   // Include 'usg' even with 0 biomarkers when there are nodule exams
   const totalNodules = noduleExams.reduce((a, e) => a + (e.nodules?.length || 0), 0);
   if (totalNodules > 0 && !grouped['usg']) grouped['usg'] = [];
-  const sortedCats = Object.keys(grouped).sort(
+  const USG_CATS = new Set(['usg']);
+  const filteredCats = Object.keys(grouped).filter(cat => {
+    if (examTypeFilter === 'lab') return !USG_CATS.has(cat);
+    if (examTypeFilter === 'usg') return USG_CATS.has(cat);
+    return true;
+  });
+  const sortedCats = filteredCats.sort(
     (a, b) => (CATEGORY_META[a]?.order ?? 99) - (CATEGORY_META[b]?.order ?? 99)
   );
 
@@ -681,7 +651,25 @@ export default function ViewBiomarkers() {
             )}
           </div>
 
-          {/* Catalog: category cards */}
+          {/* Catalog: type filter + category cards */}
+          {!isBrowsing && (
+            <>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+                {[
+                  { id: 'all', label: 'todos os tipos' },
+                  { id: 'lab', label: 'Sangue / Lab' },
+                  { id: 'usg', label: 'Imagem / USG' },
+                ].map(f => (
+                  <button key={f.id} onClick={() => setExamTypeFilter(f.id)} style={{
+                    padding: '5px 14px', borderRadius: 999, fontSize: 12, fontFamily: 'var(--mono)',
+                    background: examTypeFilter === f.id ? 'var(--ink)' : 'var(--bg-2)',
+                    color: examTypeFilter === f.id ? 'var(--bg)' : 'var(--ink-3)',
+                    border: '1px solid ' + (examTypeFilter === f.id ? 'var(--ink)' : 'var(--line-2)'),
+                  }}>{f.label}</button>
+                ))}
+              </div>
+            </>
+          )}
           {!isBrowsing && (
             <div className="grid grid-3" style={{ marginBottom: 40 }}>
               {sortedCats.map(cat => (
@@ -706,7 +694,7 @@ export default function ViewBiomarkers() {
                 <>
                   <div className="grid grid-3">
                     {showTVCard && (
-                      <TransvaginalSummary bios={catBios} tvExams={tvExams} />
+                      <TransvaginalSummary bios={catBios} />
                     )}
                     {showBreastCards && (
                       <>
