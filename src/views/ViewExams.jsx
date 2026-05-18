@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHead from '../components/PageHead';
-import { loadExamsIndex, isConfigured, deleteExam, loadPDFBlob } from '../lib/storage';
+import { loadExamsIndex, isConfigured, deleteExam, loadPDFBlob, inferExamType, EXAM_TYPES } from '../lib/storage';
 
 export default function ViewExams() {
   const navigate = useNavigate();
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [deleting, setDeleting] = useState(null);
   const [openingPdf, setOpeningPdf] = useState(null);
 
@@ -39,8 +40,16 @@ export default function ViewExams() {
   }
 
   const years = [...new Set(exams.map(e => e.date?.slice(0, 4)).filter(Boolean))].sort().reverse();
-  const filters = [{ id: 'all', label: 'todos' }, ...years.map(y => ({ id: y, label: y }))];
-  const filtered = exams.filter(e => filter === 'all' || e.date?.startsWith(filter));
+  const yearFilters = [{ id: 'all', label: 'todos' }, ...years.map(y => ({ id: y, label: y }))];
+
+  const presentTypes = [...new Set(exams.map(e => inferExamType(e)))];
+  const typeFilters = [{ id: 'all', label: 'todos os tipos' }, ...presentTypes.map(t => ({ id: t, label: EXAM_TYPES[t]?.label ?? t }))];
+
+  const filtered = exams.filter(e => {
+    if (filter !== 'all' && !e.date?.startsWith(filter)) return false;
+    if (typeFilter !== 'all' && inferExamType(e) !== typeFilter) return false;
+    return true;
+  });
   const totalPages = exams.reduce((a, e) => a + (e.pages || 1), 0);
 
   return (
@@ -72,16 +81,30 @@ export default function ViewExams() {
         </div>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 22, padding: 4, background: 'var(--bg-2)', borderRadius: 999, width: 'fit-content' }}>
-            {filters.map(f => (
-              <button key={f.id} onClick={() => setFilter(f.id)} style={{
-                padding: '6px 14px', borderRadius: 999,
-                background: filter === f.id ? 'var(--bg)' : 'transparent',
-                color: filter === f.id ? 'var(--ink)' : 'var(--ink-3)',
-                fontSize: 12.5, fontFamily: 'var(--mono)',
-                boxShadow: filter === f.id ? '0 1px 2px rgba(0,0,0,0.04)' : 'none',
-              }}>{f.label}</button>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 22 }}>
+            <div style={{ display: 'flex', gap: 6, padding: 4, background: 'var(--bg-2)', borderRadius: 999, width: 'fit-content' }}>
+              {yearFilters.map(f => (
+                <button key={f.id} onClick={() => setFilter(f.id)} style={{
+                  padding: '6px 14px', borderRadius: 999,
+                  background: filter === f.id ? 'var(--bg)' : 'transparent',
+                  color: filter === f.id ? 'var(--ink)' : 'var(--ink-3)',
+                  fontSize: 12.5, fontFamily: 'var(--mono)',
+                  boxShadow: filter === f.id ? '0 1px 2px rgba(0,0,0,0.04)' : 'none',
+                }}>{f.label}</button>
+              ))}
+            </div>
+            {typeFilters.length > 2 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {typeFilters.map(f => (
+                  <button key={f.id} onClick={() => setTypeFilter(f.id)} style={{
+                    padding: '5px 12px', borderRadius: 999, fontSize: 12, fontFamily: 'var(--mono)',
+                    background: typeFilter === f.id ? 'var(--ink)' : 'var(--bg-2)',
+                    color: typeFilter === f.id ? 'var(--bg)' : 'var(--ink-3)',
+                    border: '1px solid ' + (typeFilter === f.id ? 'var(--ink)' : 'var(--line-2)'),
+                  }}>{f.label}</button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -105,7 +128,12 @@ export default function ViewExams() {
                   <div style={{ position: 'absolute', bottom: 3, right: 3, fontSize: 7.5, fontFamily: 'var(--mono)', color: 'var(--ink-3)' }}>PDF</div>
                 </div>
                 <div>
-                  <div style={{ fontFamily: 'var(--serif)', fontSize: 19 }}>{e.lab || 'Laboratório'}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontFamily: 'var(--serif)', fontSize: 19 }}>{e.lab || 'Laboratório'}</div>
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 999, padding: '2px 8px', flexShrink: 0 }}>
+                      {EXAM_TYPES[inferExamType(e)]?.label ?? 'Outros'}
+                    </span>
+                  </div>
                   <div className="subtle tiny" style={{ marginTop: 3 }}>
                     {e.resultsCount > 0
                       ? `${e.resultsCount} marcadores`

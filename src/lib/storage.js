@@ -181,6 +181,29 @@ const CATEGORY_RULES = [
   [/tireoide lobo|istmo|nodulo tireoide|utero|endometrio|ovario|foliculo|rim d|rim e|figado|nodulo mama|elastografia/i, 'usg'],
 ];
 
+export const EXAM_TYPES = {
+  laboratorial:      { label: 'Sangue / Lab',       emoji: '🩸' },
+  usg_mama:          { label: 'USG Mama',            emoji: '🫶' },
+  usg_tireoide:      { label: 'USG Tireoide',        emoji: '⚡' },
+  usg_transvaginal:  { label: 'USG Transvaginal',    emoji: '🔬' },
+  usg_abdome:        { label: 'USG Abdome',          emoji: '🫁' },
+  usg:               { label: 'Imagem / USG',        emoji: '🔭' },
+  outro:             { label: 'Outros',              emoji: '📋' },
+};
+
+export function inferExamType(entry) {
+  const fn  = (entry.fileName  || '').toLowerCase();
+  const lab = (entry.lab       || '').toLowerCase();
+  const all = fn + ' ' + lab;
+  if (all.includes('mama'))                                          return 'usg_mama';
+  if (all.includes('transvag') || all.includes('pelv') || all.includes('ginecol') || all.includes('endometri') || all.includes('ovari')) return 'usg_transvaginal';
+  if (all.includes('tireoid'))                                       return 'usg_tireoide';
+  if (all.includes('abdome') || all.includes('abdom'))               return 'usg_abdome';
+  if (all.includes('usg') || all.includes('ultrassom') || all.includes('laudo') || (entry.noduleCount > 0 && entry.resultsCount === 0)) return 'usg';
+  if (entry.resultsCount > 0)                                        return 'laboratorial';
+  return 'outro';
+}
+
 export function inferCategory(name) {
   if (!name) return 'outros';
   for (const [re, cat] of CATEGORY_RULES) {
