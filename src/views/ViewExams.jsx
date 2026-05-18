@@ -107,7 +107,12 @@ export default function ViewExams() {
                 <div>
                   <div style={{ fontFamily: 'var(--serif)', fontSize: 19 }}>{e.lab || 'Laboratório'}</div>
                   <div className="subtle tiny" style={{ marginTop: 3 }}>
-                    {e.resultsCount ?? '—'} marcadores · {e.pages || 1} pág.
+                    {e.resultsCount > 0
+                      ? `${e.resultsCount} marcadores`
+                      : e.noduleCount > 0
+                        ? 'laudo de imagem'
+                        : '0 marcadores'
+                    } · {e.pages || 1} pág.
                   </div>
                   {e.noduleCount > 0 && (
                     <div style={{ marginTop: 5 }}>
