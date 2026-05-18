@@ -163,6 +163,25 @@ function normalizeLocation(loc) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+function extractLocTokens(loc) {
+  const norm = normalizeLocation(loc);
+  const hours = (norm.match(/\b(\d+)h\b/g) || []).map(h => h.replace('h', ''));
+  const quads = (norm.match(/\b(QSL|QSM|QIL|QIM|JQL|JQM|JQS|JQI)\b/g) || []);
+  return { hours, quads };
+}
+
+function isSameLocation(locA, locB) {
+  if (!locA || !locB) return false;
+  const a = extractLocTokens(locA);
+  const b = extractLocTokens(locB);
+  if (a.hours.length > 0 && b.hours.length > 0 && a.hours.some(h => b.hours.includes(h))) return true;
+  if (a.quads.length > 0 && b.quads.length > 0 && a.quads.some(q => b.quads.includes(q))) return true;
+  // fallback: normalized strings share a meaningful substring
+  const na = normalizeLocation(locA).toLowerCase();
+  const nb = normalizeLocation(locB).toLowerCase();
+  return na === nb;
+}
+
 function SideNoduleCard({ side, bioNodules, noduleExams }) {
   const [openExamId, setOpenExamId] = useState(null);
   const label = side === 'direita' ? 'Mama Direita' : 'Mama Esquerda';
@@ -193,35 +212,48 @@ function SideNoduleCard({ side, bioNodules, noduleExams }) {
 
       {timeline.length > 0 && (
         <div style={{ marginTop: 14, borderTop: '1px solid var(--line)', paddingTop: 8 }}>
-          {timeline.map(e => (
-            <div key={e.examId}>
-              <button
-                onClick={() => setOpenExamId(openExamId === e.examId ? null : e.examId)}
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', background: 'none', border: 'none', padding: '6px 0', cursor: 'pointer' }}
-              >
-                <span className="subtle tiny" style={{ fontFamily: 'var(--mono)' }}>
-                  {new Date(e.date + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })}
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span className="pill">{e.ns.length}</span>
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--ink-3)' }}>{openExamId === e.examId ? '−' : '+'}</span>
-                </span>
-              </button>
-              {openExamId === e.examId && (
-                <div style={{ paddingBottom: 8 }}>
-                  {e.ns.map((n, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, padding: '5px 0 5px 10px', borderLeft: '2px solid var(--line)' }}>
-                      <div>
-                        <div style={{ fontFamily: 'var(--serif)', fontSize: 13 }}>{normalizeLocation(n.location)}</div>
-                        {n.description && <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginTop: 2 }}>{n.description}</div>}
-                      </div>
-                      {n.size != null && <span className="pill" style={{ flexShrink: 0 }}>{n.size} mm</span>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+          {timeline.map((e, idx) => {
+            const prevExam = idx > 0 ? timeline[idx - 1] : null;
+            const newCount = prevExam
+              ? e.ns.filter(n => !prevExam.ns.some(pn => isSameLocation(pn.location, n.location))).length
+              : 0;
+            return (
+              <div key={e.examId}>
+                <button
+                  onClick={() => setOpenExamId(openExamId === e.examId ? null : e.examId)}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', background: 'none', border: 'none', padding: '6px 0', cursor: 'pointer' }}
+                >
+                  <span className="subtle tiny" style={{ fontFamily: 'var(--mono)' }}>
+                    {new Date(e.date + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })}
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {newCount > 0 && <span className="pill pill--terra" style={{ fontSize: 9 }}>{newCount} novo{newCount !== 1 ? 's' : ''}</span>}
+                    <span className="pill">{e.ns.length}</span>
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--ink-3)' }}>{openExamId === e.examId ? '−' : '+'}</span>
+                  </span>
+                </button>
+                {openExamId === e.examId && (
+                  <div style={{ paddingBottom: 8 }}>
+                    {e.ns.map((n, i) => {
+                      const isNew = prevExam != null && !prevExam.ns.some(pn => isSameLocation(pn.location, n.location));
+                      return (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, padding: '5px 0 5px 10px', borderLeft: `2px solid ${isNew ? 'var(--terra)' : 'var(--line)'}` }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontFamily: 'var(--serif)', fontSize: 13 }}>{normalizeLocation(n.location)}</span>
+                              {isNew && <span className="pill pill--terra" style={{ fontSize: 9 }}>novo</span>}
+                            </div>
+                            {n.description && <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginTop: 2 }}>{n.description}</div>}
+                          </div>
+                          {n.size != null && <span className="pill" style={{ flexShrink: 0 }}>{n.size} mm</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
