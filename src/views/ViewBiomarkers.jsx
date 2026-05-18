@@ -143,66 +143,85 @@ function parseBreastNodulesFromBios(bios) {
   return { direita, esquerda };
 }
 
-// nodules = structured data from parsed exam [{ side, location, size, birads, description }]
-// bioNodules = fallback from biomarker names [{ baseName, dims: [{name, value}] }]
-function SideNoduleCard({ side, nodules, bioNodules }) {
-  const [open, setOpen] = useState(false);
+const LOCATION_RULES = [
+  [/\bquadrante\s+supero\s*lateral\b/gi, 'QSL'],
+  [/\bquadrante\s+supero\s*medial\b/gi,  'QSM'],
+  [/\bquadrante\s+infero\s*lateral\b/gi, 'QIL'],
+  [/\bquadrante\s+infero\s*medial\b/gi,  'QIM'],
+  [/\bjun[çc][ãa]o\s+dos\s+quadrantes?\s+laterais?\b/gi,   'JQL'],
+  [/\bjun[çc][ãa]o\s+dos\s+quadrantes?\s+mediais?\b/gi,    'JQM'],
+  [/\bjun[çc][ãa]o\s+dos\s+quadrantes?\s+superiores?\b/gi, 'JQS'],
+  [/\bjun[çc][ãa]o\s+dos\s+quadrantes?\s+inferiores?\b/gi, 'JQI'],
+  [/\b[àa]s?\s+(\d+)\s*(?:horas?|hs?)\b/gi, (_, h) => `${h}h`],
+  [/\b(\d+)\s*(?:horas?|hs?)\b/gi, (_, h) => `${h}h`],
+  [/\s*,\s*/g, ', '],
+];
+function normalizeLocation(loc) {
+  if (!loc) return '—';
+  let s = loc.trim();
+  for (const [re, rep] of LOCATION_RULES) s = s.replace(re, rep);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function SideNoduleCard({ side, bioNodules, noduleExams }) {
+  const [openExamId, setOpenExamId] = useState(null);
   const label = side === 'direita' ? 'Mama Direita' : 'Mama Esquerda';
-  // Prefer structured data; fall back to biomarker-derived count
-  const useStructured = nodules.length > 0;
-  const count = useStructured ? nodules.length : bioNodules.length;
+
+  const timeline = noduleExams
+    .map(e => ({ ...e, ns: (e.nodules || []).filter(n => n.side === side || n.side === 'bilateral') }))
+    .filter(e => e.ns.length > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const counts = timeline.map(e => e.ns.length);
+  const latest = counts.at(-1) ?? bioNodules.length;
 
   return (
     <div className="card" style={{ textAlign: 'left' }}>
-      <button onClick={() => count > 0 && setOpen(o => !o)}
-        style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', background: 'none', border: 'none', padding: 0, cursor: count > 0 ? 'pointer' : 'default', textAlign: 'left' }}>
-        <div style={{ flex: 1 }}>
-          <div className="card-label">{label}</div>
-          <div className="num" style={{ fontSize: 40, lineHeight: 1, marginTop: 4, color: count > 0 ? 'var(--ink)' : 'var(--ink-3)' }}>
-            {count}
-          </div>
-          <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginTop: 4 }}>
-            {count === 0 ? 'nenhum achado' : `nódulo${count !== 1 ? 's' : ''} / cisto${count !== 1 ? 's' : ''} detectado${count !== 1 ? 's' : ''}`}
-          </div>
-        </div>
-        {count > 0 && (
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 20, color: 'var(--ink-3)' }}>{open ? '−' : '+'}</span>
-        )}
-      </button>
+      <div className="card-label">{label}</div>
+      <div className="num" style={{ fontSize: 40, lineHeight: 1, marginTop: 4, color: latest > 0 ? 'var(--ink)' : 'var(--ink-3)' }}>
+        {latest}
+      </div>
+      <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginTop: 4 }}>
+        {latest === 0 ? 'nenhum achado' : 'nódulos / cistos detectados'}
+      </div>
 
-      {open && count > 0 && (
-        <div style={{ marginTop: 14, borderTop: '1px solid var(--line)', paddingTop: 14 }}>
-          {useStructured
-            ? nodules.map((n, i) => (
-              <div key={i} style={{ padding: '8px 0', borderBottom: i < nodules.length - 1 ? '1px solid var(--line)' : 'none' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontFamily: 'var(--serif)', fontSize: 14 }}>{n.location || '—'}</span>
-                  {n.size != null && <span className="pill">{n.size} mm</span>}
-                </div>
-                <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginTop: 3 }}>
-                  {[n.birads && `BI-RADS ${n.birads}`, n.description].filter(Boolean).join(' · ')}
-                </div>
-              </div>
-            ))
-            : bioNodules.map((n, i) => {
-              const maxDim = n.dims.length > 0 ? Math.max(...n.dims.map(d => d.value)) : null;
-              // Extract location: part of baseName after side indicator
-              const loc = n.baseName.replace(/^(Nódulo|Cisto|Nodulo)\s+Mama\s+[DE]\s*/i, '').trim() || n.baseName;
-              return (
-                <div key={i} style={{ padding: '8px 0', borderBottom: i < bioNodules.length - 1 ? '1px solid var(--line)' : 'none' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontFamily: 'var(--serif)', fontSize: 14 }}>{loc || n.baseName}</span>
-                    {maxDim != null && <span className="pill">{maxDim} mm</span>}
-                  </div>
-                  {n.dims.length > 0 && (
-                    <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginTop: 3 }}>
-                      {n.dims.map(d => `${d.name}: ${d.value} mm`).join(' · ')}
+      {counts.length > 1 && (
+        <div style={{ marginTop: 12 }}>
+          <Sparkline values={counts} width={220} height={32} />
+        </div>
+      )}
+
+      {timeline.length > 0 && (
+        <div style={{ marginTop: 14, borderTop: '1px solid var(--line)', paddingTop: 8 }}>
+          {timeline.map(e => (
+            <div key={e.examId}>
+              <button
+                onClick={() => setOpenExamId(openExamId === e.examId ? null : e.examId)}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', background: 'none', border: 'none', padding: '6px 0', cursor: 'pointer' }}
+              >
+                <span className="subtle tiny" style={{ fontFamily: 'var(--mono)' }}>
+                  {new Date(e.date + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })}
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="pill">{e.ns.length}</span>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--ink-3)' }}>{openExamId === e.examId ? '−' : '+'}</span>
+                </span>
+              </button>
+              {openExamId === e.examId && (
+                <div style={{ paddingBottom: 8 }}>
+                  {e.ns.map((n, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, padding: '5px 0 5px 10px', borderLeft: '2px solid var(--line)' }}>
+                      <div>
+                        <div style={{ fontFamily: 'var(--serif)', fontSize: 13 }}>{normalizeLocation(n.location)}</div>
+                        {n.description && <div className="subtle tiny" style={{ fontFamily: 'var(--mono)', marginTop: 2 }}>{n.description}</div>}
+                      </div>
+                      {n.size != null && <span className="pill" style={{ flexShrink: 0 }}>{n.size} mm</span>}
                     </div>
-                  )}
+                  ))}
                 </div>
-              );
-            })
-          }
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -407,8 +426,8 @@ export default function ViewBiomarkers() {
                     <div className="grid grid-3">
                       {showBreastCards && (
                         <>
-                          <SideNoduleCard side="direita" nodules={nodulesDir} bioNodules={bioNodulesParsed.direita} />
-                          <SideNoduleCard side="esquerda" nodules={nodulesEsq} bioNodules={bioNodulesParsed.esquerda} />
+                          <SideNoduleCard side="direita" bioNodules={bioNodulesParsed.direita} noduleExams={noduleExams} />
+                          <SideNoduleCard side="esquerda" bioNodules={bioNodulesParsed.esquerda} noduleExams={noduleExams} />
                         </>
                       )}
                       {gridBios.map(b => <BioCard key={b.id} b={b} navigate={navigate} />)}
