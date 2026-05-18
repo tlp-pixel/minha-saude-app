@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHead from '../components/PageHead';
 import { parsePDF, extractDoctorFromText, extractTextFromPDF } from '../lib/parser';
-import { saveExamsIndex, saveParsedExam, loadExamsIndex, mergeParsedExamIntoBiomarkers } from '../lib/storage';
+import { saveExamsIndex, saveParsedExam, loadExamsIndex, mergeParsedExamIntoBiomarkers, savePDFFile } from '../lib/storage';
 import { statusOf } from '../lib/utils';
 
 const SUPPORTED = [
@@ -106,6 +106,7 @@ export default function ViewUpload() {
     setStage('saving');
     setProgress(90);
     await saveParsedExam(result.examId, result);
+    await savePDFFile(result.examId, file);
 
     const index = (await loadExamsIndex()) || [];
     const entry = {

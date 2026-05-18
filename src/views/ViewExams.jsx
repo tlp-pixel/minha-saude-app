@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHead from '../components/PageHead';
-import { loadExamsIndex, isConfigured, deleteExam } from '../lib/storage';
+import { loadExamsIndex, isConfigured, deleteExam, loadPDFBlob } from '../lib/storage';
 
 export default function ViewExams() {
   const navigate = useNavigate();
@@ -9,6 +9,7 @@ export default function ViewExams() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [deleting, setDeleting] = useState(null);
+  const [openingPdf, setOpeningPdf] = useState(null);
 
   useEffect(() => {
     if (!isConfigured()) { setLoading(false); return; }
@@ -17,6 +18,16 @@ export default function ViewExams() {
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
+
+  async function handleOpenPDF(e, examId) {
+    e.stopPropagation();
+    setOpeningPdf(examId);
+    const blob = await loadPDFBlob(examId);
+    setOpeningPdf(null);
+    if (!blob) { alert('PDF original não encontrado. Exames enviados antes desta versão não têm o arquivo salvo.'); return; }
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  }
 
   async function handleDelete(e, examId) {
     e.stopPropagation();
@@ -111,8 +122,15 @@ export default function ViewExams() {
                     </div>
                   )}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span className="pill pill--sage">✓ analisado</span>
+                  <button
+                    onClick={ev => handleOpenPDF(ev, e.id)}
+                    disabled={openingPdf === e.id}
+                    style={{ padding: '5px 10px', borderRadius: 'var(--r-md)', fontSize: 12, fontFamily: 'var(--mono)', color: 'var(--ink-2)', background: 'transparent', border: '1px solid var(--line-2)', opacity: openingPdf === e.id ? 0.5 : 1 }}
+                  >
+                    {openingPdf === e.id ? '…' : 'PDF ↗'}
+                  </button>
                   <button
                     onClick={ev => handleDelete(ev, e.id)}
                     disabled={deleting === e.id}

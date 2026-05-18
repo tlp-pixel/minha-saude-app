@@ -182,6 +182,91 @@ function isSameLocation(locA, locB) {
   return na === nb;
 }
 
+function buildNoduleMatrix(noduleExams, side) {
+  const exams = noduleExams
+    .map(e => ({ ...e, ns: (e.nodules || []).filter(n => n.side === side || n.side === 'bilateral') }))
+    .filter(e => e.ns.length > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const clusters = []; // { representative, cells: { examId: nodule } }
+  for (const exam of exams) {
+    for (const n of exam.ns) {
+      const existing = clusters.find(c => isSameLocation(c.representative, n.location));
+      if (existing) {
+        existing.cells[exam.examId] = n;
+      } else {
+        clusters.push({ representative: n.location, cells: { [exam.examId]: n } });
+      }
+    }
+  }
+  return { clusters, exams };
+}
+
+function NoduleMatrix({ noduleExams }) {
+  const sides = ['direita', 'esquerda'];
+  const hasBoth = sides.some(s => {
+    const { exams } = buildNoduleMatrix(noduleExams, s);
+    return exams.length >= 2;
+  });
+  if (!hasBoth) return null;
+
+  return (
+    <div style={{ marginTop: 28 }}>
+      <div className="card-label" style={{ marginBottom: 12 }}>comparação de nódulos ao longo do tempo</div>
+      {sides.map(side => {
+        const { clusters, exams } = buildNoduleMatrix(noduleExams, side);
+        if (exams.length < 2) return null;
+        const label = side === 'direita' ? 'Mama Direita' : 'Mama Esquerda';
+        return (
+          <div key={side} style={{ marginBottom: 24 }}>
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 15, fontStyle: 'italic', marginBottom: 8 }}>{label}</div>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="tbl" style={{ minWidth: 400 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', minWidth: 130 }}>Localização</th>
+                    {exams.map(e => (
+                      <th key={e.examId} style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        {new Date(e.date + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {clusters.map((row, i) => (
+                    <tr key={i}>
+                      <td style={{ fontFamily: 'var(--serif)', fontSize: 13 }}>{normalizeLocation(row.representative)}</td>
+                      {exams.map(e => {
+                        const n = row.cells[e.examId];
+                        // Check if this is "new" (not present in previous exam)
+                        const prevExam = exams[exams.indexOf(e) - 1];
+                        const isNew = prevExam && !Object.keys(row.cells).includes(prevExam.examId);
+                        return (
+                          <td key={e.examId} style={{ textAlign: 'center' }}>
+                            {n ? (
+                              <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                                <span className="num" style={{ fontSize: 14 }}>{n.size != null ? `${n.size}` : '·'}</span>
+                                {n.size != null && <span className="subtle" style={{ fontFamily: 'var(--mono)', fontSize: 10 }}>mm</span>}
+                                {isNew && <span className="pill pill--terra" style={{ fontSize: 8, padding: '1px 5px' }}>novo</span>}
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--ink-4, var(--ink-3))', fontFamily: 'var(--mono)', fontSize: 13 }}>—</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function SideNoduleCard({ side, bioNodules, noduleExams }) {
   const [openExamId, setOpenExamId] = useState(null);
   const label = side === 'direita' ? 'Mama Direita' : 'Mama Esquerda';
@@ -295,6 +380,7 @@ export default function ViewBiomarkers() {
   const [filter, setFilter] = useState('all');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
   const [noduleExams, setNoduleExams] = useState([]);
+  const [showMatrix, setShowMatrix] = useState(false);
 
   useEffect(() => {
     if (!isConfigured()) { setLoading(false); return; }
@@ -455,20 +541,33 @@ export default function ViewBiomarkers() {
             viewMode === 'list'
               ? <ListView filtered={gridBios} navigate={navigate} />
               : (
-                    <div className="grid grid-3">
-                      {showBreastCards && (
-                        <>
-                          <SideNoduleCard side="direita" bioNodules={bioNodulesParsed.direita} noduleExams={noduleExams} />
-                          <SideNoduleCard side="esquerda" bioNodules={bioNodulesParsed.esquerda} noduleExams={noduleExams} />
-                        </>
-                      )}
-                      {gridBios.map(b => <BioCard key={b.id} b={b} navigate={navigate} />)}
-                      {gridBios.length === 0 && !showBreastCards && (
-                        <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px 0', color: 'var(--ink-3)', fontFamily: 'var(--serif)', fontSize: 16 }}>
-                          Nenhum biomarcador encontrado.
-                        </div>
-                      )}
+                <>
+                  <div className="grid grid-3">
+                    {showBreastCards && (
+                      <>
+                        <SideNoduleCard side="direita" bioNodules={bioNodulesParsed.direita} noduleExams={noduleExams} />
+                        <SideNoduleCard side="esquerda" bioNodules={bioNodulesParsed.esquerda} noduleExams={noduleExams} />
+                      </>
+                    )}
+                    {gridBios.map(b => <BioCard key={b.id} b={b} navigate={navigate} />)}
+                    {gridBios.length === 0 && !showBreastCards && (
+                      <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px 0', color: 'var(--ink-3)', fontFamily: 'var(--serif)', fontSize: 16 }}>
+                        Nenhum biomarcador encontrado.
+                      </div>
+                    )}
+                  </div>
+                  {showBreastCards && noduleExams.length >= 2 && (
+                    <div style={{ marginTop: 16 }}>
+                      <button
+                        onClick={() => setShowMatrix(v => !v)}
+                        style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12, fontFamily: 'var(--mono)', background: 'var(--bg-2)', border: '1px solid var(--line-2)', color: 'var(--ink-2)', cursor: 'pointer' }}
+                      >
+                        {showMatrix ? '▲ ocultar tabela comparativa' : '▼ ver tabela comparativa de nódulos'}
+                      </button>
+                      {showMatrix && <NoduleMatrix noduleExams={noduleExams} />}
                     </div>
+                  )}
+                </>
               )
           )}
         </>

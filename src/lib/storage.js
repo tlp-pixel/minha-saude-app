@@ -133,13 +133,25 @@ export async function mergeParsedExamIntoBiomarkers(parsed) {
   return biomarkers;
 }
 
+export async function savePDFFile(examId, file) {
+  const buffer = await file.arrayBuffer();
+  await dbPut(`exames/pdf/${examId}`, buffer);
+}
+
+export async function loadPDFBlob(examId) {
+  const buffer = await dbGet(`exames/pdf/${examId}`);
+  if (!buffer) return null;
+  return new Blob([buffer], { type: 'application/pdf' });
+}
+
 export async function deleteExam(examId) {
   // Remove from index
   const index = await loadExamsIndex();
   await saveExamsIndex(index.filter(e => e.id !== examId));
 
-  // Remove parsed file
+  // Remove parsed file and original PDF
   await dbDelete(`exames/parsed/${examId}.json`);
+  await dbDelete(`exames/pdf/${examId}`);
 
   // Remove measurements from biomarkers
   const biomarkers = await loadBiomarkers();
