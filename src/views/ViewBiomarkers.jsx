@@ -196,11 +196,13 @@ const TV = {
   odEsp:      /^[OoÓó]v[aá]rio\s+D\s*-\s*espessura/i,
   odVol:      /^[OoÓó]v[aá]rio\s+D\s*-\s*volume/i,
   odFol:      /^[OoÓó]v[aá]rio\s+D\s*-\s*f[oó]l[ií]/i,
+  odCisto:    /^[Cc]isto\s+[OoÓó]v[aá]rio\s+D/i,
   oeComp:     /^[OoÓó]v[aá]rio\s+E\s*-\s*comprimento/i,
   oeLarg:     /^[OoÓó]v[aá]rio\s+E\s*-\s*largura/i,
   oeEsp:      /^[OoÓó]v[aá]rio\s+E\s*-\s*espessura/i,
   oeVol:      /^[OoÓó]v[aá]rio\s+E\s*-\s*volume/i,
   oeFol:      /^[OoÓó]v[aá]rio\s+E\s*-\s*f[oó]l[ií]/i,
+  oeCisto:    /^[Cc]isto\s+[OoÓó]v[aá]rio\s+E/i,
 };
 
 export function isTransvaginalBio(b) {
@@ -281,10 +283,12 @@ function TransvaginalSummary({ bios }) {
         <TVSection title="Ovário Direito" rows={[
           { label: 'volume',         bio: f('odVol'), refMax: 10, refLabel: 'acima do normal' },
           { label: 'folículo maior', bio: f('odFol') },
+          { label: 'cisto',          bio: f('odCisto') },
         ]} />
         <TVSection title="Ovário Esquerdo" rows={[
           { label: 'volume',         bio: f('oeVol'), refMax: 10, refLabel: 'acima do normal' },
           { label: 'folículo maior', bio: f('oeFol') },
+          { label: 'cisto',          bio: f('oeCisto') },
         ]} />
       </div>
     </div>
@@ -564,7 +568,7 @@ export default function ViewBiomarkers() {
 
   // In USG, hide mama dimension bios and transvaginal bios (replaced by summary cards)
   const showTVCard = selectedCat === 'usg' && catBios.some(b => isTransvaginalBio(b));
-  const USG_HIDE = /^Rim\s+[DE]\b|^F[íi]gado\b/i;
+  const USG_HIDE = /^Rim\s+[DE]\b|^F[íi]gado\b|^[Cc]isto\s+[OoÓó]v[aá]rio\s+[DE]/i;
   const gridBios = filtered.filter(b => {
     if (selectedCat !== 'usg') return true;
     if (b.name.toLowerCase().includes('mama') && b.name.includes(' - ')) return false;
