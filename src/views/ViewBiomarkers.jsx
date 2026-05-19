@@ -564,10 +564,12 @@ export default function ViewBiomarkers() {
 
   // In USG, hide mama dimension bios and transvaginal bios (replaced by summary cards)
   const showTVCard = selectedCat === 'usg' && catBios.some(b => isTransvaginalBio(b));
+  const USG_HIDE = /^Rim\s+[DE]\b|^F[íi]gado\b/i;
   const gridBios = filtered.filter(b => {
     if (selectedCat !== 'usg') return true;
     if (b.name.toLowerCase().includes('mama') && b.name.includes(' - ')) return false;
     if (isTransvaginalBio(b)) return false;
+    if (USG_HIDE.test(b.name)) return false;
     return true;
   });
 
