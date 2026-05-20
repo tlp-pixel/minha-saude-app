@@ -197,14 +197,28 @@ const TV = {
   odLarg:     /^[OoÓó]v[aá]rio\s+D\s*-\s*largura/i,
   odEsp:      /^[OoÓó]v[aá]rio\s+D\s*-\s*espessura/i,
   odVol:      /^[OoÓó]v[aá]rio\s+D\s*-\s*volume/i,
-  odFol:      /^[OoÓó]v[aá]rio\s+D\s*-\s*f[oó]l[ií]/i,
+  odFol:      /^(?:[OoÓó]v[aá]rio\s+D\s*-\s*f[oó]l[ií]|[Ff]ol[ií]culos?\s+[OoÓó]v[aá]rio\s+D)/i,
   odCisto:    /^[Cc]isto\s+[OoÓó]v[aá]rio\s+D/i,
   oeComp:     /^[OoÓó]v[aá]rio\s+E\s*-\s*comprimento/i,
   oeLarg:     /^[OoÓó]v[aá]rio\s+E\s*-\s*largura/i,
   oeEsp:      /^[OoÓó]v[aá]rio\s+E\s*-\s*espessura/i,
   oeVol:      /^[OoÓó]v[aá]rio\s+E\s*-\s*volume/i,
-  oeFol:      /^[OoÓó]v[aá]rio\s+E\s*-\s*f[oó]l[ií]/i,
+  oeFol:      /^(?:[OoÓó]v[aá]rio\s+E\s*-\s*f[oó]l[ií]|[Ff]ol[ií]culos?\s+[OoÓó]v[aá]rio\s+E)/i,
   oeCisto:    /^[Cc]isto\s+[OoÓó]v[aá]rio\s+E/i,
+  // DIU
+  diuSer:     /^DIU\b.*seros/i,
+  diuExt:     /^DIU\b.*orif/i,
+  diuOther:   /^DIU\b/i,
+  // Nódulo / área nodular endometrial
+  endoNodD1:  /^[Ee]ndom[eé]trio\s*-\s*[ÁAa]rea\s+[Nn]odular\s*-\s*[Dd]imens[aã]o\s*1/i,
+  endoNodD2:  /^[Ee]ndom[eé]trio\s*-\s*[ÁAa]rea\s+[Nn]odular\s*-\s*[Dd]imens[aã]o\s*2/i,
+  nodEnd1Tam: /^[Nn][oó]dulo\s+[Ee]ndom.*\b1\b.*[Tt]aman/i,
+  nodEnd1D1:  /^[Nn][oó]dulo\s+[Ee]ndom.*\b1\b.*[Dd]imens[aã]o\s*1/i,
+  nodEnd1D2:  /^[Nn][oó]dulo\s+[Ee]ndom.*\b1\b.*[Dd]imens[aã]o\s*2/i,
+  nodEnd1D3:  /^[Nn][oó]dulo\s+[Ee]ndom.*\b1\b.*[Dd]imens[aã]o\s*3/i,
+  nodEnd2Tam: /^[Nn][oó]dulo\s+[Ee]ndom.*\b2\b.*[Tt]aman/i,
+  nodEnd2D1:  /^[Nn][oó]dulo\s+[Ee]ndom.*\b2\b.*[Dd]imens[aã]o\s*1/i,
+  nodEnd2D2:  /^[Nn][oó]dulo\s+[Ee]ndom.*\b2\b.*[Dd]imens[aã]o\s*2/i,
 };
 
 export function isTransvaginalBio(b) {
@@ -263,8 +277,11 @@ function TVSection({ title, rows }) {
 
 function TransvaginalSummary({ bios }) {
   const f = key => tvFind(bios, key);
-  const hasData = f('uteroComp') || f('odVol') || f('oeVol');
+  const hasData = f('uteroComp') || f('uteroVol') || f('odVol') || f('oeVol') || f('endo') || f('diuSer') || f('diuExt') || f('diuOther') || f('nodEnd1Tam') || f('nodEnd1D1') || f('endoNodD1');
   if (!hasData) return null;
+
+  const hasDIU = f('diuSer') || f('diuExt') || f('diuOther');
+  const hasEndoNod = f('endoNodD1') || f('endoNodD2') || f('nodEnd1Tam') || f('nodEnd1D1') || f('nodEnd2Tam') || f('nodEnd2D1');
 
   return (
     <div style={{ gridColumn: '1/-1', marginBottom: 8 }}>
@@ -272,13 +289,28 @@ function TransvaginalSummary({ bios }) {
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 14 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <TVSection title="Útero" rows={[
-            { label: 'volume',    bio: f('uteroVol'), refMax: 90, refLabel: 'acima do normal' },
+            { label: 'volume',     bio: f('uteroVol'), refMax: 90, refLabel: 'acima do normal' },
             { label: 'endométrio', bio: f('endo') },
           ]} />
           {(f('uteroNod') || f('uteroCisto')) && (
             <TVSection title="Achados uterinos" rows={[
               { label: 'nódulo', bio: f('uteroNod') },
               { label: 'cisto',  bio: f('uteroCisto') },
+            ]} />
+          )}
+          {hasDIU && (
+            <TVSection title="DIU" rows={[
+              { label: 'dist. superfície serosa',  bio: f('diuSer') || f('diuOther') },
+              { label: 'dist. orifício externo',   bio: f('diuExt') },
+            ]} />
+          )}
+          {hasEndoNod && (
+            <TVSection title="Nódulo endometrial" rows={[
+              { label: 'tamanho',    bio: f('nodEnd1Tam') || f('endoNodD1') },
+              { label: 'dimensão 2', bio: f('nodEnd1D2')  || f('endoNodD2') },
+              { label: 'dimensão 3', bio: f('nodEnd1D3') },
+              { label: 'nódulo 2 - tamanho',    bio: f('nodEnd2Tam') || f('nodEnd2D1') },
+              { label: 'nódulo 2 - dimensão 2', bio: f('nodEnd2D2') },
             ]} />
           )}
         </div>
