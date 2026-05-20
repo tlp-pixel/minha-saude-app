@@ -18,8 +18,10 @@ export const CATEGORY_META = {
   inflamatorios: { label: 'Inflamatórios',        emoji: '🔥', order: 10 },
   bioquimica:    { label: 'Bioquímica',           emoji: '🧪', order: 11 },
   urina:         { label: 'Urina',                emoji: '💧', order: 12 },
-  usg:           { label: 'Imagem / USG',         emoji: '🔭', order: 13 },
-  outros:        { label: 'Outros',               emoji: '📋', order: 99 },
+  usg_transvaginal: { label: 'USG Transvaginal',   emoji: '🫀', order: 13 },
+  usg_mama:         { label: 'USG Mama',           emoji: '🫧', order: 14 },
+  usg:              { label: 'Imagem / USG',       emoji: '🔭', order: 15 },
+  outros:           { label: 'Outros',             emoji: '📋', order: 99 },
 };
 
 function ListView({ filtered, navigate }) {
@@ -517,17 +519,21 @@ export default function ViewBiomarkers() {
     .filter(b => b.measurements?.length > 0)
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
-  // Group by category
+  // Group by category, splitting 'usg' into sub-types by name
   const grouped = {};
   bioList.forEach(b => {
-    const cat = b.category || 'outros';
+    let cat = b.category || 'outros';
+    if (cat === 'usg') {
+      if (isTransvaginalBio(b)) cat = 'usg_transvaginal';
+      else if (b.name.toLowerCase().includes('mama')) cat = 'usg_mama';
+    }
     if (!grouped[cat]) grouped[cat] = [];
     grouped[cat].push(b);
   });
-  // Include 'usg' even with 0 biomarkers when there are nodule exams
+  // Include 'usg_mama' even with 0 biomarkers when there are nodule exams
   const totalNodules = noduleExams.reduce((a, e) => a + (e.nodules?.length || 0), 0);
-  if (totalNodules > 0 && !grouped['usg']) grouped['usg'] = [];
-  const USG_CATS = new Set(['usg']);
+  if (totalNodules > 0 && !grouped['usg_mama']) grouped['usg_mama'] = [];
+  const USG_CATS = new Set(['usg', 'usg_mama', 'usg_transvaginal']);
   const filteredCats = Object.keys(grouped).filter(cat => {
     if (examTypeFilter === 'lab') return !USG_CATS.has(cat);
     if (examTypeFilter === 'usg') return USG_CATS.has(cat);
@@ -557,7 +563,7 @@ export default function ViewBiomarkers() {
   const isBrowsing = selectedCat || search || filter !== 'all';
 
   // Breast nodule summary cards — always shown in USG category
-  const showBreastCards = selectedCat === 'usg';
+  const showBreastCards = selectedCat === 'usg_mama';
   // Structured data (from parsed exam nodules array)
   const allNodules = noduleExams.flatMap(e => e.nodules || []);
   const nodulesDir = allNodules.filter(n => n.side === 'direita' || n.side === 'bilateral');
@@ -567,13 +573,12 @@ export default function ViewBiomarkers() {
   const bioNodulesParsed = usgMamaBios.length > 0 ? parseBreastNodulesFromBios(usgMamaBios) : { direita: [], esquerda: [] };
 
   // In USG, hide mama dimension bios and transvaginal bios (replaced by summary cards)
-  const showTVCard = selectedCat === 'usg' && catBios.some(b => isTransvaginalBio(b));
-  const USG_HIDE = /^Rim\s+[DE]\b|^F[íi]gado\b|^[Cc]isto\s+[OoÓó]v[aá]rio\s+[DE]/i;
+  const showTVCard = selectedCat === 'usg_transvaginal';
+  const USG_HIDE = /^Rim\s+[DE]\b|^F[íi]gado\b/i;
   const gridBios = filtered.filter(b => {
-    if (selectedCat !== 'usg') return true;
-    if (b.name.toLowerCase().includes('mama') && b.name.includes(' - ')) return false;
-    if (isTransvaginalBio(b)) return false;
-    if (USG_HIDE.test(b.name)) return false;
+    if (selectedCat === 'usg_transvaginal') return false; // all shown in TV summary
+    if (selectedCat === 'usg_mama') return false;         // all shown in nodule cards
+    if (selectedCat === 'usg' && USG_HIDE.test(b.name)) return false;
     return true;
   });
 
@@ -653,7 +658,7 @@ export default function ViewBiomarkers() {
                 {[
                   { id: 'all', label: 'todos os tipos' },
                   { id: 'lab', label: 'Sangue / Lab' },
-                  { id: 'usg', label: 'Imagem / USG' },
+                  { id: 'usg', label: 'Imagem / USG' }, // matches usg, usg_mama, usg_transvaginal
                 ].map(f => (
                   <button key={f.id} onClick={() => setExamTypeFilter(f.id)} style={{
                     padding: '5px 14px', borderRadius: 999, fontSize: 12, fontFamily: 'var(--mono)',
@@ -675,7 +680,7 @@ export default function ViewBiomarkers() {
                   bios={grouped[cat] || []}
                   navigate={navigate}
                   onClick={() => setSelectedCat(cat)}
-                  noduleCount={cat === 'usg' ? totalNodules : 0}
+                  noduleCount={cat === 'usg_mama' ? totalNodules : 0}
                 />
               ))}
             </div>
@@ -698,7 +703,7 @@ export default function ViewBiomarkers() {
                       </>
                     )}
                     {gridBios.map(b => <BioCard key={b.id} b={b} navigate={navigate} />)}
-                    {gridBios.length === 0 && !showBreastCards && (
+                    {gridBios.length === 0 && !showBreastCards && !showTVCard && (
                       <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px 0', color: 'var(--ink-3)', fontFamily: 'var(--serif)', fontSize: 16 }}>
                         Nenhum biomarcador encontrado.
                       </div>
