@@ -22,7 +22,18 @@ const STAGE_LABELS = {
   done:        'Concluído',
 };
 
-function BatchResult({ results, onAgain }) {
+function classifyError(msg = '') {
+  const m = msg.toLowerCase();
+  if (m.includes('high demand') || m.includes('overload') || m.includes('503') || m.includes('try again'))
+    return 'transient';
+  if (m.includes('quota') || m.includes('429') || m.includes('rate limit'))
+    return 'quota';
+  if (m.includes('api key') || m.includes('invalid') || m.includes('401'))
+    return 'auth';
+  return 'other';
+}
+
+function BatchResult({ results, onAgain, onRetry }) {
   const navigate = useNavigate();
   const totalMarkers = results.reduce((a, r) => a + (r.parsed?.results?.length ?? 0), 0);
   const ok = results.filter(r => r.ok);
@@ -75,14 +86,29 @@ function BatchResult({ results, onAgain }) {
         ))}
       </div>
 
-      {failed.length > 0 && (
-        <div className="card" style={{ borderColor: 'var(--rust)', borderStyle: 'dashed' }}>
-          <div className="card-label" style={{ color: 'var(--rust)' }}>arquivos com erro</div>
-          <p style={{ fontFamily: 'var(--serif)', fontSize: 14, color: 'var(--ink-2)', margin: '6px 0 0' }}>
-            {failed.length} arquivo{failed.length > 1 ? 's' : ''} não pôde ser processado. Verifique se são PDFs de exame com texto legível (não escaneados).
-          </p>
-        </div>
-      )}
+      {failed.length > 0 && (() => {
+        const errorTypes = failed.map(f => classifyError(f.error));
+        const isAllTransient = errorTypes.every(t => t === 'transient');
+        const hasTransient = errorTypes.some(t => t === 'transient');
+        const hasRetryable = failed.some(f => f.file);
+        return (
+          <div className="card" style={{ borderColor: 'var(--rust)', borderStyle: 'dashed' }}>
+            <div className="card-label" style={{ color: 'var(--rust)' }}>arquivos com erro</div>
+            <p style={{ fontFamily: 'var(--serif)', fontSize: 14, color: 'var(--ink-2)', margin: '6px 0 12px' }}>
+              {isAllTransient
+                ? 'API do Gemini temporariamente sobrecarregada — espere alguns minutos e tente novamente.'
+                : hasTransient
+                  ? 'Alguns arquivos falharam por sobrecarga temporária da API. Tente novamente em instantes.'
+                  : 'Verifique se os arquivos são PDFs de exame válidos e tente novamente.'}
+            </p>
+            {hasRetryable && (
+              <button className="btn btn--ghost" onClick={() => onRetry(failed.filter(f => f.file).map(f => f.file))}>
+                ↺ Tentar novamente
+              </button>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -183,7 +209,7 @@ export default function ViewUpload() {
         const parsed = await processFile(file);
         results.push({ ok: true, fileName: file.name, parsed });
       } catch (e) {
-        results.push({ ok: false, fileName: file.name, error: e.message });
+        results.push({ ok: false, fileName: file.name, error: e.message, file });
       }
     }
 
@@ -201,7 +227,7 @@ export default function ViewUpload() {
   }
 
   if (batchResults) {
-    return <BatchResult results={batchResults} onAgain={reset} />;
+    return <BatchResult results={batchResults} onAgain={reset} onRetry={handleFiles} />;
   }
 
   const isProcessing = stage !== 'idle' && stage !== 'done';
