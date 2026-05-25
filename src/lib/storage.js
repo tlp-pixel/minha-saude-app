@@ -223,7 +223,7 @@ export function inferCategory(name) {
 }
 
 const BIOMARKER_ALIASES = [
-  // Vitaminas
+  // ── Vitaminas ──────────────────────────────────────────────────────────────
   { pattern: /vitamina.?b.?12|cianocobalamina|cobalamina/i,                       canonical: 'Vitamina B12',        category: 'vitaminas' },
   { pattern: /vitamina.?d(?:\b|3|\s*[-–])|25.?oh|25.?hidroxi|calcifediol|calciferol|colecalciferol/i, canonical: 'Vitamina D', category: 'vitaminas' },
   { pattern: /acido.?folico|ácido.?fólico|\bfolato\b/i,                           canonical: 'Ácido Fólico',        category: 'vitaminas' },
@@ -231,38 +231,104 @@ const BIOMARKER_ALIASES = [
   { pattern: /ferro.?seric|ferro.?séric/i,                                         canonical: 'Ferro Sérico',        category: 'vitaminas' },
   { pattern: /\btibc\b|capacidade.*liga.*ferro|liga.*total.*ferro/i,               canonical: 'TIBC',                category: 'vitaminas' },
   { pattern: /\btransferrina\b/i,                                                  canonical: 'Transferrina',        category: 'vitaminas' },
-  // Glicêmico
+
+  // ── Glicêmico ──────────────────────────────────────────────────────────────
   { pattern: /\bglicose\b|\bglicemia\b/i,                                          canonical: 'Glicose',             category: 'glicemico' },
   { pattern: /hemoglobina.glicada|hba1c|hb.?a1c/i,                                canonical: 'Hemoglobina Glicada', category: 'glicemico' },
   { pattern: /\binsulina\b/i,                                                      canonical: 'Insulina',            category: 'glicemico' },
-  // Lipídeos — IMPORTANT: match "total" first (before bare colesterol)
+
+  // ── Lipídeos ───────────────────────────────────────────────────────────────
   { pattern: /colesterol.total|colesterol\s*[-–]\s*total/i,                        canonical: 'Colesterol Total',    category: 'lipideos' },
   { pattern: /\bhdl\b|hdl.colesterol|colesterol.hdl/i,                             canonical: 'HDL Colesterol',      category: 'lipideos' },
   { pattern: /\bldl\b|ldl.colesterol|colesterol.ldl/i,                             canonical: 'LDL Colesterol',      category: 'lipideos' },
   { pattern: /\bvldl\b|vldl.colesterol|colesterol.vldl/i,                          canonical: 'VLDL Colesterol',     category: 'lipideos' },
   { pattern: /triglicerid/i,                                                        canonical: 'Triglicerídeos',      category: 'lipideos' },
-  // Inflamatórios
+
+  // ── Inflamatórios ──────────────────────────────────────────────────────────
   { pattern: /\bpcr\b|proteina.?c.?reativa|proteína.?c.?reativa/i,                canonical: 'PCR',                 category: 'inflamatorios' },
   { pattern: /\bvhs\b|velocidade.hemossedimenta/i,                                 canonical: 'VHS',                 category: 'inflamatorios' },
-  // Renal
+
+  // ── Renal ──────────────────────────────────────────────────────────────────
   { pattern: /\bureia\b|\buréia\b/i,                                               canonical: 'Ureia',               category: 'renal' },
   { pattern: /\bcreatinina\b/i,                                                    canonical: 'Creatinina',          category: 'renal' },
   { pattern: /acido.?uric|ácido.?úric/i,                                           canonical: 'Ácido Úrico',         category: 'renal' },
-  // Hepático
+
+  // ── Hepático ───────────────────────────────────────────────────────────────
   { pattern: /\btgo\b|\bast\b|aspartato.aminotransfer/i,                           canonical: 'TGO (AST)',           category: 'hepatico' },
   { pattern: /\btgp\b|\balt\b|alanina.aminotransfer/i,                             canonical: 'TGP (ALT)',           category: 'hepatico' },
   { pattern: /gama.?gt|\bggt\b|gamaglutamil/i,                                    canonical: 'Gama GT',             category: 'hepatico' },
   { pattern: /fosfatase.?alcalina/i,                                               canonical: 'Fosfatase Alcalina',  category: 'hepatico' },
-  // Tireoide — CRITICAL: livre patterns must come BEFORE total patterns
+  // CPK / CK — Creatinofosfoquinase
+  { pattern: /\bcpk\b|creatinofosfoquinase|creatinoquinase\s+total|creatinoquinase.*\(ck\)/i, canonical: 'CPK', category: 'hepatico' },
+
+  // ── Tireoide (livre BEFORE total) ─────────────────────────────────────────
   { pattern: /t3.*livre|triiodotironina.*livre/i,                                  canonical: 'T3 Livre',            category: 'tireoide' },
   { pattern: /t4.*livre|tiroxina.*livre/i,                                          canonical: 'T4 Livre',            category: 'tireoide' },
   { pattern: /\btsh\b/i,                                                            canonical: 'TSH',                 category: 'tireoide' },
   { pattern: /triiodotironina(?![\s\S]*livre)|t3\s*[\(\[]\s*triiodot|\bt3\b(?![\s\S]{0,10}livre)/i, canonical: 'T3 Total', category: 'tireoide' },
   { pattern: /tiroxina(?![\s\S]*livre)|t4\s*[\(\[]\s*tiroxina|\bt4\b(?![\s\S]{0,10}livre)/i,        canonical: 'T4 Total', category: 'tireoide' },
-  { pattern: /anti.?tpo|antiperoxidase|anticorpo.*tireoid|tireoid.*anticorpo/i,    canonical: 'Anti-TPO',            category: 'tireoide' },
-  { pattern: /anti.?tg|anti.?tiroglobulin/i,                                       canonical: 'Anti-Tireoglobulina', category: 'tireoide' },
-  // TSH
-  { pattern: /\btsh\b/i,                                                            canonical: 'TSH',                 category: 'tireoide' },
+  // Anti-TPO: todas as grafias de anticorpos anti-peroxidase
+  { pattern: /anti.?tpo|anti.?tireoperoxidase|anticorpos?\s+anti.?peroxidase|antiperoxidase.?tireoid/i, canonical: 'Anti-TPO', category: 'tireoide' },
+  // Anti-Tireoglobulina: Anti-TG / Anticorpos Anti-Tireoglobulina / Anticorpos Antitireoglobulina
+  { pattern: /anti.?tg\b|anti.?tiroglobulin|anti.?tireoglobulin|anticorpos?\s+antitireoglobulin/i,  canonical: 'Anti-Tireoglobulina', category: 'tireoide' },
+  // Tireoglobulina vs Tiroglobulina (duas grafias para o mesmo marcador)
+  { pattern: /^(tireo|tiro)globulina$/i,                                            canonical: 'Tireoglobulina',      category: 'tireoide' },
+
+  // ── Hormônios ──────────────────────────────────────────────────────────────
+  // 17-Alfa-Hidroxiprogesterona: "17 Alfa-OH-Progesterona" e variantes
+  { pattern: /17.?alfa.?oh.?progesterona|17.?alfa.?hidroxiprogesterona|17.?oh.?progesterona/i, canonical: '17-Alfa-Hidroxiprogesterona', category: 'hormonios' },
+  // Estradiol = 17-Beta-Estradiol
+  { pattern: /estradiol|17.?beta.?estradiol/i,                                     canonical: 'Estradiol',           category: 'hormonios' },
+  // DHEA-S: SDHEA / Sulfato de Dehidroepiandrosterona
+  { pattern: /\bdhea.?s\b|\bsdhea\b|sulfato.?de.?de[sh]idroepiandrosterona/i,     canonical: 'DHEA-S',              category: 'hormonios' },
+  // IGF-1 = Somatomedina C
+  { pattern: /\bigf.?1\b|somatomedina.?c/i,                                        canonical: 'IGF-1',               category: 'hormonios' },
+  // PTH = Paratormônio
+  { pattern: /\bpth\b|paratorm[oô]nio/i,                                            canonical: 'PTH',                 category: 'hormonios' },
+  // Testosterona (sem especificação) = Testosterona Total
+  { pattern: /^testosterona(\s+total)?$/i,                                          canonical: 'Testosterona Total',  category: 'hormonios' },
+  // Beta-HCG = HCG
+  { pattern: /\bhcg\b|beta.?hcg|gonadotrofina.cori[oô]nica/i,                     canonical: 'Beta-HCG',            category: 'hormonios' },
+
+  // ── Bioquímica ─────────────────────────────────────────────────────────────
+  // Cálcio Ionizado = Cálcio Iônico
+  { pattern: /c[aá]lcio\s+ioniz|c[aá]lcio\s+i[oô]nico/i,                          canonical: 'Cálcio Ionizado',     category: 'bioquimica' },
+  // Fósforo = Fósforo Inorgânico
+  { pattern: /^f[oó]sforo(\s+inorg[aâ]nico)?$/i,                                   canonical: 'Fósforo',             category: 'bioquimica' },
+  // Albumina/Globulinas: Relação Albumina/Globulina(s)
+  { pattern: /rela[cç][aã]o\s+albumina.globulinas?/i,                              canonical: 'Albumina/Globulinas', category: 'bioquimica' },
+
+  // ── Hemograma ──────────────────────────────────────────────────────────────
+  // CHCM = Concentração de Hemoglobina Corpuscular Média
+  { pattern: /\bchcm\b|concentra[cç][aã]o\s+de\s+hemoglobina\s+corpuscular/i,     canonical: 'CHCM',                category: 'hemograma' },
+  // HCM = Hemoglobina Corpuscular Média
+  { pattern: /\bhcm\b|hemoglobina\s+corpuscular\s+m[eé]dia/i,                      canonical: 'HCM',                 category: 'hemograma' },
+  // RDW / RDW-CV / Coeficiente de Variação do Volume Eritrocitário
+  { pattern: /^rdw(?!.{0,3}sd)|rdw.?cv|coeficiente\s+de\s+varia[cç][aã]o.*eritrocit/i, canonical: 'RDW', category: 'hemograma' },
+  // VCM = Volume Corpuscular Médio
+  { pattern: /\bvcm\b|volume\s+corpuscular\s+m[eé]dio/i,                           canonical: 'VCM',                 category: 'hemograma' },
+  // VPM = Volume Plaquetário Médio
+  { pattern: /\bvpm\b|volume\s+plaquet[aá]rio\s+m[eé]dio/i,                        canonical: 'VPM',                 category: 'hemograma' },
+  // Plaquetas: Contagem de Plaquetas / Plaquetas Contagem / Total de Plaquetas
+  { pattern: /^plaquetas(\s+(contagem|totais?))?$|^(contagem|total)\s+de\s+plaquetas$|^plaquetas\s+contagem$/i, canonical: 'Plaquetas', category: 'hemograma' },
+  // Leucócitos = Leucócitos Totais
+  { pattern: /^leuc[oó]citos(\s+totais?)?$/i,                                       canonical: 'Leucócitos',          category: 'hemograma' },
+
+  // ── Leucograma ─────────────────────────────────────────────────────────────
+  // Segmentados = Neutrófilos (nomenclatura alternativa)
+  { pattern: /^segmentados\s+%$/i,                                                  canonical: 'Neutrófilos %',       category: 'leucograma' },
+  { pattern: /^segmentados\s+abs\.?$/i,                                             canonical: 'Neutrófilos Abs.',    category: 'leucograma' },
+
+  // ── USG / Imagem ───────────────────────────────────────────────────────────
+  // Folículo(s) Ovário D — "Folículo D" / "Folículos D" / "Maior Tamanho" vs "Maior Dimensão"
+  { pattern: /^fol[ií]culos?\s+ov[aá]rio\s+d\s*-\s*(maior\s+)?(dimens[aã]o|tamanho)/i, canonical: 'Folículos Ovário D - Maior Dimensão', category: 'usg' },
+
+  // ── Urina ──────────────────────────────────────────────────────────────────
+  // Normaliza campos sem prefixo "Urina -" vs com prefixo
+  { pattern: /^(urina\s*-\s*)?densidade$/i,                                         canonical: 'Urina - Densidade',   category: 'urina' },
+  { pattern: /^(urina\s*-\s*)?hem[aá]cias$/i,                                       canonical: 'Urina - Hemácias',    category: 'urina' },
+  { pattern: /^urina\s*-\s*leucocitos$/i,                                            canonical: 'Urina - Leucócitos',  category: 'urina' },
+  { pattern: /^(urina\s*-\s*)?ph$/i,                                                 canonical: 'Urina - pH',          category: 'urina' },
 ];
 
 export async function mergeBiomarkerAliases() {
